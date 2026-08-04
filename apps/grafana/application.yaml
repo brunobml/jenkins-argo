@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: oci://ghcr.io/grafana/helm-charts/grafana
+    targetRevision: 10.1.4
+    path: .
+    helm:
+      releaseName: grafana
+      valuesObject:
+        service:
+          type: ClusterIP
+
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          hosts:
+            - grafana.localhost
+
+        persistence:
+          enabled: true
+          storageClassName: local-path
+          size: 5Gi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
