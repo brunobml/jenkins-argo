@@ -39,6 +39,18 @@ spec:
     canary:
       steps:
         - setWeight: 20
-        - pause: {}
+        - analysis:
+            templates:
+              - templateName: canary-readiness
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
         - setWeight: 50
-        - pause: {}
+        - analysis:
+            templates:
+              - templateName: canary-readiness
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
