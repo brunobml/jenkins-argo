@@ -38,6 +38,16 @@ spec:
                 isDefault: true
                 editable: true
 
+        deploymentStrategy:
+          type: Recreat
+        initChownData:
+          enabled: fals
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 472
+          runAsGroup: 472
+          fsGroup: 472
+
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
