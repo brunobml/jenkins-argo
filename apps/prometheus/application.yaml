@@ -31,7 +31,34 @@ spec:
             size: 8Gi
 
         alertmanager:
-          enabled: false
+          enabled: true
+
+          persistence:
+            enabled: true
+            storageClass: local-path
+            size: 2Gi
+
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - alertmanager.localhost
+            path: /
+            pathType: Prefix
+
+        serverFiles:
+          alerting_rules.yml:
+            groups:
+              - name: gitops-lab
+                rules:
+                  - alert: GitOpsLabTestAlert
+                    expr: vector(1)
+                    for: 1m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: GitOps lab test alert
+                      description: Alertmanager and Prometheus alerting are working.
 
   destination:
     server: https://kubernetes.default.svc
