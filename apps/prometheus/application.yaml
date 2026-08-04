@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: oci://ghcr.io/prometheus-community/charts/prometheus
+    targetRevision: 29.21.0
+    path: .
+    helm:
+      releaseName: prometheus
+      valuesObject:
+        server:
+          service:
+            type: ClusterIP
+
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - prometheus.localhost
+            path: /
+            pathType: Prefix
+
+          persistentVolume:
+            enabled: true
+            storageClass: local-path
+            size: 8Gi
+
+        alertmanager:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prometheus
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
