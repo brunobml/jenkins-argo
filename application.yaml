@@ -16,6 +16,11 @@ spec:
         controller:
           serviceType: ClusterIP
 
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          hostName: jenkins.localhost
+
         persistence:
           enabled: true
           storageClass: local-path
