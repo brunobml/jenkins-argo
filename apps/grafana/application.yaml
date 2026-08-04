@@ -27,6 +27,17 @@ spec:
           storageClassName: local-path
           size: 5Gi
 
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: Prometheus
+                type: prometheus
+                access: proxy
+                url: http://prometheus-server.prometheus.svc.cluster.local
+                isDefault: true
+                editable: true
+
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
