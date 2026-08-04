@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: canary-demo
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: git@github.com:brunobml/jenkins-argo.git
+    targetRevision: HEAD
+    path: apps/canary-demo/manifests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: canary-demo
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
