@@ -52,15 +52,6 @@ spec:
             groups:
               - name: gitops-lab
                 rules:
-                  - alert: GitOpsLabTestAlert
-                    expr: vector(1)
-                    for: 1m
-                    labels:
-                      severity: warning
-                    annotations:
-                      summary: GitOps lab test alert
-                      description: Alertmanager and Prometheus alerting are working.
-
                   - alert: KubernetesPodStuckPending
                     expr: sum by (namespace, pod) (kube_pod_status_phase{phase="Pending"} == 1) > 0
                     for: 5m
