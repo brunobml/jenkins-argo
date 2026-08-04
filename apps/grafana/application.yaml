@@ -66,7 +66,7 @@ spec:
                       "title": "Total Pods",
                       "datasource": {
                         "type": "prometheus",
-                        "uid": "prometheus"
+                        "uid": "PBFA97CFB590B2093"
                       },
                       "targets": [
                         {
@@ -87,7 +87,7 @@ spec:
                       "title": "Running Pods",
                       "datasource": {
                         "type": "prometheus",
-                        "uid": "prometheus"
+                        "uid": "PBFA97CFB590B2093"
                       },
                       "targets": [
                         {
@@ -108,7 +108,7 @@ spec:
                       "title": "Pending or Failed Pods",
                       "datasource": {
                         "type": "prometheus",
-                        "uid": "prometheus"
+                        "uid": "PBFA97CFB590B2093"
                       },
                       "targets": [
                         {
@@ -129,7 +129,7 @@ spec:
                       "title": "Prometheus Targets Up",
                       "datasource": {
                         "type": "prometheus",
-                        "uid": "prometheus"
+                        "uid": "PBFA97CFB590B2093"
                       },
                       "targets": [
                         {
@@ -150,7 +150,7 @@ spec:
                       "title": "Pods by Namespace",
                       "datasource": {
                         "type": "prometheus",
-                        "uid": "prometheus"
+                        "uid": "PBFA97CFB590B2093"
                       },
                       "targets": [
                         {
