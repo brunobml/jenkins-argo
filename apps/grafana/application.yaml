@@ -39,9 +39,9 @@ spec:
                 editable: true
 
         deploymentStrategy:
-          type: Recreat
+          type: Recreate
         initChownData:
-          enabled: fals
+          enabled: false
         securityContext:
           runAsNonRoot: true
           runAsUser: 472
