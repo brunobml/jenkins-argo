@@ -192,6 +192,194 @@ spec:
                   "version": 1
                 }        
 
+            kubernetes-logs:
+              json: |
+                {
+                  "annotations": {
+                    "list": []
+                  },
+                  "editable": false,
+                  "panels": [
+                    {
+                      "datasource": {
+                        "type": "loki",
+                        "uid": "loki"
+                      },
+                      "fieldConfig": {
+                        "defaults": {
+                          "unit": "short"
+                        },
+                        "overrides": []
+                      },
+                      "gridPos": {
+                        "h": 8,
+                        "w": 24,
+                        "x": 0,
+                        "y": 0
+                      },
+                      "id": 1,
+                      "options": {
+                        "legend": {
+                          "displayMode": "list",
+                          "placement": "bottom",
+                          "showLegend": true
+                        },
+                        "tooltip": {
+                          "mode": "multi"
+                        }
+                      },
+                      "targets": [
+                        {
+                          "expr": "sum by (namespace) (count_over_time({cluster=\"kind-lab\"}[1m]))",
+                          "legendFormat": "{{namespace}}",
+                          "queryType": "range",
+                          "refId": "A"
+                        }
+                      ],
+                      "title": "Log Volume by Namespace",
+                      "type": "timeseries"
+                    },
+                    {
+                      "datasource": {
+                        "type": "loki",
+                        "uid": "loki"
+                      },
+                      "gridPos": {
+                        "h": 10,
+                        "w": 24,
+                        "x": 0,
+                        "y": 8
+                      },
+                      "id": 2,
+                      "options": {
+                        "dedupStrategy": "none",
+                        "enableLogDetails": true,
+                        "prettifyLogMessage": false,
+                        "showCommonLabels": false,
+                        "showLabels": false,
+                        "showTime": true,
+                        "sortOrder": "Descending",
+                        "wrapLogMessage": true
+                      },
+                      "targets": [
+                        {
+                          "expr": "{cluster=\"kind-lab\", namespace=~\"$namespace\", pod=~\"$pod\"} |~ \"(?i)error|warning|failed|exception\"",
+                          "queryType": "range",
+                          "refId": "A"
+                        }
+                      ],
+                      "title": "Warnings and Errors",
+                      "type": "logs"
+                    },
+                    {
+                      "datasource": {
+                        "type": "loki",
+                        "uid": "loki"
+                      },
+                      "gridPos": {
+                        "h": 12,
+                        "w": 24,
+                        "x": 0,
+                        "y": 18
+                      },
+                      "id": 3,
+                      "options": {
+                        "dedupStrategy": "none",
+                        "enableLogDetails": true,
+                        "prettifyLogMessage": false,
+                        "showCommonLabels": false,
+                        "showLabels": true,
+                        "showTime": true,
+                        "sortOrder": "Descending",
+                        "wrapLogMessage": true
+                      },
+                      "targets": [
+                        {
+                          "expr": "{cluster=\"kind-lab\", namespace=~\"$namespace\", pod=~\"$pod\", container=~\"$container\"}",
+                          "queryType": "range",
+                          "refId": "A"
+                        }
+                      ],
+                      "title": "Kubernetes Pod Logs",
+                      "type": "logs"
+                    }
+                  ],
+                  "refresh": "10s",
+                  "schemaVersion": 41,
+                  "tags": [
+                    "kubernetes",
+                    "loki",
+                    "logs",
+                    "gitops"
+                  ],
+                  "templating": {
+                    "list": [
+                      {
+                        "allValue": ".*",
+                        "current": {
+                          "text": "All",
+                          "value": "$__all"
+                        },
+                        "datasource": {
+                          "type": "loki",
+                          "uid": "loki"
+                        },
+                        "definition": "label_values({cluster=\"kind-lab\"}, namespace)",
+                        "includeAll": true,
+                        "label": "Namespace",
+                        "name": "namespace",
+                        "query": "label_values({cluster=\"kind-lab\"}, namespace)",
+                        "refresh": 1,
+                        "type": "query"
+                      },
+                      {
+                        "allValue": ".*",
+                        "current": {
+                          "text": "All",
+                          "value": "$__all"
+                        },
+                        "datasource": {
+                          "type": "loki",
+                          "uid": "loki"
+                        },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=~\"$namespace\"}, pod)",
+                        "includeAll": true,
+                        "label": "Pod",
+                        "name": "pod",
+                        "query": "label_values({cluster=\"kind-lab\", namespace=~\"$namespace\"}, pod)",
+                        "refresh": 1,
+                        "type": "query"
+                      },
+                      {
+                        "allValue": ".*",
+                        "current": {
+                          "text": "All",
+                          "value": "$__all"
+                        },
+                        "datasource": {
+                          "type": "loki",
+                          "uid": "loki"
+                        },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=~\"$namespace\", pod=~\"$pod\"}, container)",
+                        "includeAll": true,
+                        "label": "Container",
+                        "name": "container",
+                        "query": "label_values({cluster=\"kind-lab\", namespace=~\"$namespace\", pod=~\"$pod\"}, container)",
+                        "refresh": 1,
+                        "type": "query"
+                      }
+                    ]
+                  },
+                  "time": {
+                    "from": "now-1h",
+                    "to": "now"
+                  },
+                  "timezone": "browser",
+                  "title": "Kubernetes Logs",
+                  "uid": "kubernetes-logs",
+                  "version": 1
+                }
+
         deploymentStrategy:
           type: Recreate
         initChownData:
