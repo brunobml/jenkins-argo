@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jenkins
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: oci://ghcr.io/jenkinsci/helm-charts/jenkins
+    targetRevision: 5.9.49
+    path: .
+    helm:
+      releaseName: jenkins
+      valuesObject:
+        controller:
+          serviceType: ClusterIP
+
+        persistence:
+          enabled: true
+          storageClass: local-path
+          size: 8Gi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jenkins
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
