@@ -11,7 +11,8 @@ spec:
     targetRevision: main
     path: apps
     directory:
-      recurse: false
+      recurse: true
+      include: '*/application.yaml'
 
   destination:
     server: https://kubernetes.default.svc
