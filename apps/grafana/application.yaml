@@ -38,6 +38,152 @@ spec:
                 isDefault: true
                 editable: true
 
+        dashboardProviders:
+          dashboardproviders.yaml:
+            apiVersion: 1
+            providers:
+              - name: default
+                orgId: 1
+                folder: Kubernetes
+                type: file
+                disableDeletion: true
+                editable: false
+                options:
+                  path: /var/lib/grafana/dashboards/default
+
+        dashboards:
+          default:
+            kubernetes-overview:
+              json: |
+                {
+                  "annotations": {
+                    "list": []
+                  },
+                  "editable": false,
+                  "panels": [
+                    {
+                      "type": "stat",
+                      "title": "Total Pods",
+                      "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                      },
+                      "targets": [
+                        {
+                          "expr": "count(kube_pod_info)",
+                          "instant": true,
+                          "refId": "A"
+                        }
+                      ],
+                      "gridPos": {
+                        "h": 6,
+                        "w": 6,
+                        "x": 0,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "type": "stat",
+                      "title": "Running Pods",
+                      "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                      },
+                      "targets": [
+                        {
+                          "expr": "sum(kube_pod_status_phase{phase=\"Running\"})",
+                          "instant": true,
+                          "refId": "A"
+                        }
+                      ],
+                      "gridPos": {
+                        "h": 6,
+                        "w": 6,
+                        "x": 6,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "type": "stat",
+                      "title": "Pending or Failed Pods",
+                      "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                      },
+                      "targets": [
+                        {
+                          "expr": "sum(kube_pod_status_phase{phase=~\"Pending|Failed\"})",
+                          "instant": true,
+                          "refId": "A"
+                        }
+                      ],
+                      "gridPos": {
+                        "h": 6,
+                        "w": 6,
+                        "x": 12,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "type": "stat",
+                      "title": "Prometheus Targets Up",
+                      "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                      },
+                      "targets": [
+                        {
+                          "expr": "sum(up)",
+                          "instant": true,
+                          "refId": "A"
+                        }
+                      ],
+                      "gridPos": {
+                        "h": 6,
+                        "w": 6,
+                        "x": 18,
+                        "y": 0
+                      }
+                    },
+                    {
+                      "type": "bargauge",
+                      "title": "Pods by Namespace",
+                      "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                      },
+                      "targets": [
+                        {
+                          "expr": "count(kube_pod_info) by (namespace)",
+                          "instant": true,
+                          "legendFormat": "{{namespace}}",
+                          "refId": "A"
+                        }
+                      ],
+                      "gridPos": {
+                        "h": 9,
+                        "w": 24,
+                        "x": 0,
+                        "y": 6
+                      }
+                    }
+                  ],
+                  "refresh": "30s",
+                  "schemaVersion": 41,
+                  "tags": [
+                    "kubernetes",
+                    "gitops"
+                  ],
+                  "time": {
+                    "from": "now-1h",
+                    "to": "now"
+                  },
+                  "timezone": "browser",
+                  "title": "Kubernetes Overview",
+                  "uid": "kubernetes-overview",
+                  "version": 1
+                }        
+
         deploymentStrategy:
           type: Recreate
         initChownData:
