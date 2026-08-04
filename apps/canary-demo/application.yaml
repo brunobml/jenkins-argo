@@ -7,8 +7,8 @@ spec:
   project: default
 
   source:
-    repoURL: git@github.com:brunobml/jenkins-argo.git
-    targetRevision: HEAD
+    repoURL: https://github.com/brunobml/jenkins-argo.git
+    targetRevision: main
     path: apps/canary-demo/manifests
 
   destination:
