@@ -6,19 +6,22 @@ spec:
   args:
     - name: canary-hash
 
-  metrics:
-    - name: canary-pod-readiness
-      initialDelay: 10s
-      interval: 10s
-      count: 3
-      successCondition: result[0] == 1
-      failureCondition: result[0] < 1
-      failureLimit: 1
+metrics:
+  - name: canary-pod-readiness
+    initialDelay: 30s
+    interval: 10s
+    count: 3
 
-      provider:
-        prometheus:
-          address: http://prometheus-server.prometheus.svc.cluster.local
-          query: |
+    successCondition: result[0] == 1
+    failureCondition: result[0] < 1
+    failureLimit: 1
+    consecutiveErrorLimit: 4
+
+    provider:
+      prometheus:
+        address: http://prometheus-server.prometheus.svc.cluster.local
+        query: |
+          (
             avg(
               kube_pod_status_ready{
                 namespace="canary-demo",
@@ -26,3 +29,4 @@ spec:
                 pod=~"canary-demo-{{args.canary-hash}}-.*"
               }
             )
+          ) or vector(0)
