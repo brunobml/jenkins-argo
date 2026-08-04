@@ -15,11 +15,10 @@ spec:
       valuesObject:
         controller:
           serviceType: ClusterIP
-
-        ingress:
-          enabled: true
-          ingressClassName: traefik
-          hostName: jenkins.localhost
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hostName: jenkins.localhost
 
         persistence:
           enabled: true
