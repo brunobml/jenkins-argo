@@ -40,11 +40,12 @@ spec:
 
           ingress:
             enabled: true
-            ingressClassName: traefik
+            className: traefik
             hosts:
-              - alertmanager.localhost
-            path: /
-            pathType: Prefix
+              - host: alertmanager.localhost
+                paths:
+                  - path: /
+                    pathType: Prefix
 
         serverFiles:
           alerting_rules.yml:
