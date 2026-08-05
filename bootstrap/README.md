@@ -68,7 +68,11 @@ kubectl patch configmap argocd-cmd-params-cm \
   -n argocd \
   --type merge \
   -p '{"data":{"server.insecure":"true"}}'
+```
 
+### Rollout Restart ArgoCD server
+
+```bash
 kubectl rollout restart deployment argocd-server -n argocd
 ```
 
