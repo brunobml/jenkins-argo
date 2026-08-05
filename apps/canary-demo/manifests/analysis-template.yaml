@@ -10,8 +10,8 @@ spec:
     - name: canary-pod-readiness
       initialDelay: 60s
       interval: 15s
-      count: 3
-      failureLimit: 1
+      count: 5
+      failureLimit: 2
       consecutiveErrorLimit: 4
       successCondition: result[0] == 1
       failureCondition: result[0] < 1
