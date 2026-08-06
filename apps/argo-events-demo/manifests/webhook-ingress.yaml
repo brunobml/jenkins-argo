@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lab-webhook
+  namespace: argo-events
+spec:
+  ingressClassName: traefik
+
+  rules:
+    - host: events.localhost
+      http:
+        paths:
+          - path: /deploy
+            pathType: Prefix
+            backend:
+              service:
+                name: lab-webhook-eventsource-svc
+                port:
+                  number: 12000
