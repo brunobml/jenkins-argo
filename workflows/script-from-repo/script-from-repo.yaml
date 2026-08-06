@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: script-from-repo-
+  namespace: argo-workflows
+
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: resize-image
+
+  arguments:
+    parameters:
+      - name: imageName
+        value: example.jpg
+
+      - name: dimensions
+        value: "100x100 200x200 400x400"
+
+  templates:
+    - name: resize-image
+
+      inputs:
+        parameters:
+          - name: imageName
+          - name: dimensions
+
+        artifacts:
+          - name: source-code
+            path: /workspace/repository
+            git:
+              repo: https://github.com/brunobml/jenkins-argo.git
+              revision: main
+
+      container:
+        image: vulhub/imagemagick:7.1.0-49
+        imagePullPolicy: IfNotPresent
+
+        workingDir: /mnt
+
+        command:
+          - /bin/bash
+
+        args:
+          - /workspace/repository/scripts/resize-image.sh
+          - "{{inputs.parameters.imageName}}"
+          - "{{inputs.parameters.dimensions}}"
+
+        volumeMounts:
+          - name: working-directory
+            mountPath: /mnt
+
+  volumes:
+    - name: working-directory
+      emptyDir: {}
