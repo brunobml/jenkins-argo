@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-workflows
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-workflows
+    targetRevision: 1.0.23
+
+    helm:
+      releaseName: argo-workflows
+      values: |
+        controller:
+          workflowNamespaces:
+            - argo-workflows
+
+          metricsConfig:
+            enabled: true
+            secure: false
+
+          telemetryConfig:
+            enabled: true
+            secure: false
+
+        server:
+          enabled: true
+
+          # Suitable for this local lab.
+          # The server uses its own Kubernetes service account.
+          authModes:
+            - server
+
+          # Traefik terminates/exposes HTTP for this local lab.
+          secure: false
+
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - workflows.localhost
+            paths:
+              - /
+            pathType: Prefix
+
+        singleNamespace: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-workflows
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
