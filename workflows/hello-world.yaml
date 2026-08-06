@@ -4,6 +4,7 @@ metadata:
   generateName: hello-world-
   namespace: argo-workflows
 spec:
+  serviceAccountName: argo-workflow
   entrypoint: hello
 
   templates:
