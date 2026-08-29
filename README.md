@@ -42,6 +42,10 @@ flowchart TD
 | Grafana | Visualizes metrics and operational data |
 | Loki | Stores and queries Kubernetes logs |
 | Alloy | Collects and forwards telemetry to the observability stack |
+| Argo Workflows | Runs pipeline jobs (Terraform, container builds) |
+| Argo Events | Event-driven triggers (webhooks → workflows) |
+| Argo CD Image Updater | Rolls newly built images onto their applications |
+| s3-moto | End-to-end demo: Argo Workflows provisions infra + builds the image, Argo CD deploys it ([apps/s3-moto](apps/s3-moto/README.md)) |
 
 ## Repository structure
 
