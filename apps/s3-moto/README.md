@@ -11,6 +11,11 @@ k3d host at `localhost:5000`, reachable from inside the cluster as
 `http://host.k3d.internal:5000`. Point the same manifests and Terraform at real
 AWS by dropping the endpoint override and wiring real credentials.
 
+> **Moto must run with `S3_IGNORE_SUBDOMAIN_BUCKETNAME=1`** (already set in
+> `~/repos/moto/compose.yaml`). Without it, Moto reads the request `Host`
+> (`host.k3d.internal`) as `<bucket>.<domain>` and every S3 call fails with
+> `NoSuchBucket`. `localhost` works only because Moto special-cases it.
+
 ```
 Git ──► Argo CD ──► s3-consumer Deployment              (namespace: s3-moto)
                 └─► s3-moto-terraform WorkflowTemplate  (namespace: argo-workflows)
