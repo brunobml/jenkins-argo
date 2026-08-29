@@ -64,7 +64,6 @@ spec:
                 key: client-secret
               redirectUrl: http://workflows.localhost/oauth2/callback
               scopes:
-                - groups
                 - email
                 - profile
               rbac:

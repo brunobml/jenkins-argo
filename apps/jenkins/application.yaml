@@ -33,7 +33,7 @@ spec:
                 serverConfiguration:
                   wellKnown:
                     wellKnownOpenIDConfigurationUrl: "http://keycloak.localhost/realms/platform/.well-known/openid-configuration"
-                    scopesOverride: "openid email profile groups"
+                    scopesOverride: "openid email profile"
                 userNameField: "preferred_username"
                 fullNameFieldName: "name"
                 emailFieldName: "email"

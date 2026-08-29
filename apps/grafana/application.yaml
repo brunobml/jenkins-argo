@@ -36,7 +36,7 @@ spec:
             name: Keycloak
             client_id: grafana
             client_secret: grafana-oidc-secret
-            scopes: openid profile email groups
+            scopes: openid profile email
             auth_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/auth
             token_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/token
             api_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/userinfo

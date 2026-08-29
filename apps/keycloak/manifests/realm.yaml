@@ -45,29 +45,6 @@ data:
           "groups": [ "/platform-viewers" ]
         }
       ],
-      "clientScopes": [
-        {
-          "name": "groups",
-          "description": "OpenID Connect scope that adds a groups claim to the token",
-          "protocol": "openid-connect",
-          "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
-          "protocolMappers": [
-            {
-              "name": "groups",
-              "protocol": "openid-connect",
-              "protocolMapper": "oidc-group-membership-mapper",
-              "consentRequired": false,
-              "config": {
-                "full.path": "false",
-                "id.token.claim": "true",
-                "access.token.claim": "true",
-                "userinfo.token.claim": "true",
-                "claim.name": "groups"
-              }
-            }
-          ]
-        }
-      ],
       "clients": [
         {
           "clientId": "argocd",
@@ -83,7 +60,21 @@ data:
             "http://localhost:8085/auth/callback"
           ],
           "webOrigins": [ "+" ],
-          "defaultClientScopes": [ "profile", "email", "roles", "web-origins", "groups" ]
+          "protocolMappers": [
+            {
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "false",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
         },
         {
           "clientId": "grafana",
@@ -95,7 +86,21 @@ data:
           "standardFlowEnabled": true,
           "redirectUris": [ "http://grafana.localhost/login/generic_oauth" ],
           "webOrigins": [ "+" ],
-          "defaultClientScopes": [ "profile", "email", "roles", "web-origins", "groups" ]
+          "protocolMappers": [
+            {
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "false",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
         },
         {
           "clientId": "argo-workflows",
@@ -107,7 +112,21 @@ data:
           "standardFlowEnabled": true,
           "redirectUris": [ "http://workflows.localhost/oauth2/callback" ],
           "webOrigins": [ "+" ],
-          "defaultClientScopes": [ "profile", "email", "roles", "web-origins", "groups" ]
+          "protocolMappers": [
+            {
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "false",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
         },
         {
           "clientId": "jenkins",
@@ -119,7 +138,21 @@ data:
           "standardFlowEnabled": true,
           "redirectUris": [ "http://jenkins.localhost/securityRealm/finishLogin" ],
           "webOrigins": [ "+" ],
-          "defaultClientScopes": [ "profile", "email", "roles", "web-origins", "groups" ]
+          "protocolMappers": [
+            {
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "false",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
         }
       ]
     }
