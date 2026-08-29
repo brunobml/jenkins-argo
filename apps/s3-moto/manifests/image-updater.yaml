@@ -1,0 +1,21 @@
+# Argo CD Image Updater (v1.x CR API): watch the CI-built image and roll new
+# git-sha tags onto the s3-moto Application via a kustomize image override.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: s3-moto
+  namespace: argocd
+spec:
+  applicationRefs:
+    - namePattern: s3-moto
+      images:
+        - alias: app
+          imageName: k3d-registry:5000/s3-moto-app
+          manifestTargets:
+            kustomize:
+              name: k3d-registry:5000/s3-moto-app
+          commonUpdateSettings:
+            updateStrategy: newest-build
+            allowTags: "regexp:^[0-9a-f]{7,40}$"
+      writeBackConfig:
+        method: argocd

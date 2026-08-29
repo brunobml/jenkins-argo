@@ -7,6 +7,7 @@ resources:
   - manifests/provision-workflow.yaml
   - manifests/teardown-workflow.yaml
   - manifests/ci-build-template.yaml
+  - manifests/image-updater.yaml
   - manifests/app.yaml
 
 # Seed tag. Argo CD Image Updater (write-back method "argocd") overrides this by
