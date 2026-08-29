@@ -224,12 +224,15 @@ $(printf '\033[1;32m==> Bootstrap complete\033[0m')
   Argo Rollouts    http://rollouts.localhost
   Prometheus       http://prometheus.localhost
   Alertmanager     http://alertmanager.localhost
+  MinIO console    http://minio.localhost
+  s3-moto demo     http://s3-moto.localhost
   ---------------------------------------------------------------------
 
   Image registry   ${REGISTRY_NAME}:${REGISTRY_PORT}   (in-cluster; CI workflows push here)
 
   Argo CD admin (local fallback) : admin / ${ARGOCD_PASSWORD}
   Keycloak admin                 : admin / admin
+  MinIO                          : minioadmin / minioadmin123
   SSO user (all UIs)             : developer / developer   (group: platform-admins)
 
   argocd CLI login (copy/paste):
