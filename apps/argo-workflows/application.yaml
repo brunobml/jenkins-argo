@@ -8,52 +8,73 @@ metadata:
 spec:
   project: default
 
-  source:
-    repoURL: https://argoproj.github.io/argo-helm
-    chart: argo-workflows
-    targetRevision: 1.0.23
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-workflows
+      targetRevision: 1.0.23
 
-    helm:
-      releaseName: argo-workflows
-      values: |
-        workflow:
-          serviceAccount:
-            create: true
-            name: argo-workflow
-    
-          rbac:
-            create: true
-    
-        controller:
-          workflowNamespaces:
-            - argo-workflows
-    
-          metricsConfig:
+      helm:
+        releaseName: argo-workflows
+        values: |
+          workflow:
+            serviceAccount:
+              create: true
+              name: argo-workflow
+
+            rbac:
+              create: true
+
+          controller:
+            workflowNamespaces:
+              - argo-workflows
+
+            metricsConfig:
+              enabled: true
+              secure: false
+
+            telemetryConfig:
+              enabled: true
+              secure: false
+
+          server:
             enabled: true
+
+            authModes:
+              - sso
+
             secure: false
-    
-          telemetryConfig:
-            enabled: true
-            secure: false
-    
-        server:
-          enabled: true
-    
-          authModes:
-            - server
-    
-          secure: false
-    
-          ingress:
-            enabled: true
-            ingressClassName: traefik
-            hosts:
-              - workflows.localhost
-            paths:
-              - /
-            pathType: Prefix
-    
-        singleNamespace: true        
+
+            ingress:
+              enabled: true
+              ingressClassName: traefik
+              hosts:
+                - workflows.localhost
+              paths:
+                - /
+              pathType: Prefix
+
+            sso:
+              issuer: http://keycloak.localhost/realms/platform
+              clientId:
+                name: argo-workflows-sso
+                key: client-id
+              clientSecret:
+                name: argo-workflows-sso
+                key: client-secret
+              redirectUrl: http://workflows.localhost/oauth2/callback
+              scopes:
+                - groups
+                - email
+                - profile
+              rbac:
+                enabled: false
+
+          singleNamespace: true
+
+    # Provides the argo-workflows-sso Secret referenced above.
+    - repoURL: https://github.com/brunobml/jenkins-argo.git
+      targetRevision: main
+      path: apps/argo-workflows/manifests
 
   destination:
     server: https://kubernetes.default.svc

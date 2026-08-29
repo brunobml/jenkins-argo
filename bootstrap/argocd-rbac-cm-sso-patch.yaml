@@ -1,0 +1,6 @@
+# Merge-patched onto the argocd-rbac-cm ConfigMap by bootstrap.sh.
+# Members of the Keycloak "platform-admins" group get full Argo CD admin.
+data:
+  scopes: "[groups]"
+  policy.csv: |
+    g, platform-admins, role:admin

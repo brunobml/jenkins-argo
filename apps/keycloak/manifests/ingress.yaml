@@ -1,18 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: argocd
-  namespace: argocd
+  name: keycloak
+  namespace: keycloak
 spec:
   ingressClassName: traefik
   rules:
-    - host: argocd.localhost
+    - host: keycloak.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: argocd-server
+                name: keycloak
                 port:
                   number: 80

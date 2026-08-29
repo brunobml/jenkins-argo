@@ -22,6 +22,27 @@ spec:
           hosts:
             - grafana.localhost
 
+        grafana.ini:
+          server:
+            root_url: http://grafana.localhost
+          auth:
+            oauth_allow_insecure_email_lookup: true
+          auth.generic_oauth:
+            enabled: true
+            name: Keycloak
+            client_id: grafana
+            client_secret: grafana-oidc-secret
+            scopes: openid profile email groups
+            auth_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/auth
+            token_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/token
+            api_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/userinfo
+            login_attribute_path: preferred_username
+            groups_attribute_path: groups
+            role_attribute_path: "contains(groups[*], 'platform-admins') && 'GrafanaAdmin' || contains(groups[*], 'platform-viewers') && 'Viewer' || 'Viewer'"
+            allow_assign_grafana_admin: true
+            auto_login: false
+            use_pkce: true
+
         persistence:
           enabled: true
           storageClassName: local-path

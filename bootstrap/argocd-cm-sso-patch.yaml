@@ -1,0 +1,17 @@
+# Merge-patched onto the argocd-cm ConfigMap by bootstrap.sh.
+# Wires Argo CD's own login to the Keycloak "argocd" client.
+data:
+  url: http://argocd.localhost
+  oidc.config: |
+    name: Keycloak
+    issuer: http://keycloak.localhost/realms/platform
+    clientID: argocd
+    clientSecret: argocd-oidc-secret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
+    requestedIDTokenClaims:
+      groups:
+        essential: true

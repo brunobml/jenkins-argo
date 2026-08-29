@@ -20,6 +20,34 @@ spec:
             ingressClassName: traefik
             hostName: jenkins.localhost
 
+          jenkinsUrl: http://jenkins.localhost
+
+          additionalPlugins:
+            - oic-auth
+
+          JCasC:
+            securityRealm: |-
+              oic:
+                clientId: "jenkins"
+                clientSecret: "jenkins-oidc-secret"
+                serverConfiguration:
+                  wellKnown:
+                    wellKnownOpenIDConfigurationUrl: "http://keycloak.localhost/realms/platform/.well-known/openid-configuration"
+                    scopesOverride: "openid email profile groups"
+                userNameField: "preferred_username"
+                fullNameFieldName: "name"
+                emailFieldName: "email"
+                groupsFieldName: "groups"
+                disableSslVerification: true
+                logoutFromOpenidProvider: true
+                escapeHatchEnabled: true
+                escapeHatchUsername: "admin"
+                escapeHatchSecret: "admin123"
+                escapeHatchGroup: "platform-admins"
+            authorizationStrategy: |-
+              loggedInUsersCanDoAnything:
+                allowAnonymousRead: false
+
         persistence:
           enabled: true
           storageClass: local-path

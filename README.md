@@ -34,6 +34,7 @@ flowchart TD
 | Application | Purpose |
 | --- | --- |
 | Argo CD | GitOps controller and application management interface |
+| Keycloak | OIDC identity provider; single sign-on for the platform UIs |
 | Jenkins | Continuous integration server managed through Argo CD |
 | Argo Rollouts | Kubernetes controller for progressive delivery |
 | Canary Demo | Demonstrates a canary rollout with automated analysis |
@@ -113,6 +114,14 @@ kubectl argo rollouts get rollout canary-demo -n canary-demo
 ```
 
 A completed rollout may retain older failed `AnalysisRun` resources as history. This is expected; the current Rollout status is the primary indicator of whether the active release is healthy.
+
+## Single sign-on
+
+Keycloak (`apps/keycloak/`) runs as one of the platform applications and provides
+OIDC login for Argo CD, Grafana, Jenkins and Argo Workflows. The `platform` realm,
+its clients and seed users are imported from Git on every start. See
+[bootstrap/README.md](bootstrap/README.md#sso-with-keycloak) for URLs, users and
+the group-to-role mapping.
 
 ## Disaster recovery concept
 

@@ -1,10 +1,19 @@
+# Automated bootstrap
+
+`./bootstrap/bootstrap.sh` runs every step below end to end (and `--destroy`
+tears the cluster down). The manual steps are kept here for reference.
+
+> Ports are mapped 1:1 (`80:80`, `443:443`) so the Keycloak OIDC issuer
+> `http://keycloak.localhost` resolves to the same URL from the browser and from
+> inside the cluster. See [SSO with Keycloak](#sso-with-keycloak) below.
+
 # install k3d cluster
 
 ```bash
 k3d cluster create argolab \
 --api-port 6550 \
--p "8080:80@loadbalancer" \
--p "8443:443@loadbalancer" \
+-p "80:80@loadbalancer" \
+-p "443:443@loadbalancer" \
 --agents 2
 
 INFO[0000] portmapping '8080:80' targets the loadbalancer: defaulting to [servers:*:proxy agents:*:proxy]
@@ -54,12 +63,24 @@ kubectl apply \
 -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
+## Resolve *.localhost inside the cluster
+
+So in-cluster clients (Argo CD, Grafana, Jenkins, Argo Workflows) can reach the
+Keycloak issuer at the same URL as the browser.
+
+```bash
+kubectl apply -f bootstrap/coredns-localhost-rewrite.yaml
+kubectl -n kube-system rollout restart deployment coredns
+```
+
 ## Create Ingress
 
 ```bash
 kubectl apply -f bootstrap/argocd-ingress.yaml
 ingress.networking.k8s.io/argocd created
 ```
+
+The ingress is served at `http://argocd.localhost`.
 
 ## Patch ConfigMap argoCD server to accept insecure connections
 
@@ -68,6 +89,15 @@ kubectl patch configmap argocd-cmd-params-cm \
   -n argocd \
   --type merge \
   -p '{"data":{"server.insecure":"true"}}'
+```
+
+## Wire Argo CD login to Keycloak
+
+```bash
+kubectl patch configmap argocd-cm -n argocd --type merge \
+  --patch-file bootstrap/argocd-cm-sso-patch.yaml
+kubectl patch configmap argocd-rbac-cm -n argocd --type merge \
+  --patch-file bootstrap/argocd-rbac-cm-sso-patch.yaml
 ```
 
 ### Rollout Restart ArgoCD server
@@ -87,10 +117,11 @@ kubectl get secret argocd-initial-admin-secret \
 ## Login to Argo-CD WebUI
 
 ```bash
-User:Admin
-
-http://localhost:8080
+http://argocd.localhost
 ```
+
+Either the local `admin` user, or **Log in via Keycloak** as `developer` /
+`developer` (member of `platform-admins`, mapped to Argo CD `role:admin`).
 
 ## Instal argocd cli
 
@@ -109,14 +140,14 @@ ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret \
 ## login argocd cli
 
 ```bash
-argocd login localhost:8080 \
+argocd login argocd.localhost \
 --username admin \
 --password "$ARGOCD_PASSWORD" \
 --plaintext \
---insecure
-{"level":"warning","msg":"Failed to invoke grpc call. Use flag --grpc-web in grpc calls. To avoid this warning message, use flag --grpc-web.","time":"2026-08-05T14:44:20-06:00"}
+--insecure \
+--grpc-web
 'admin:login' logged in successfully
-Context 'localhost:8080' updated
+Context 'argocd.localhost' updated
 ```
 
 ## Bootstrap MAIN APP
@@ -142,3 +173,48 @@ argocd/loki           https://kubernetes.default.svc  loki           default  Sy
 argocd/platform-apps  https://kubernetes.default.svc  argocd         default  Synced  Healthy  Auto-Prune  <none>      https://github.com/brunobml/jenkins-argo.git          apps                        main
 argocd/prometheus     https://kubernetes.default.svc  prometheus     default  Synced  Healthy  Auto-Prune  <none>      oci://ghcr.io/prometheus-community/charts/prometheus  .                           29.21.0
 ```
+
+# SSO with Keycloak
+
+The `keycloak` application (`apps/keycloak/`) runs Keycloak in dev mode and
+imports the `platform` realm from `apps/keycloak/manifests/realm.yaml`. The realm
+declares one confidential client per UI:
+
+| App            | URL                        | Keycloak client  | Login flow                          |
+| -------------- | -------------------------- | ---------------- | ----------------------------------- |
+| Argo CD        | http://argocd.localhost    | `argocd`         | "Log in via Keycloak" button        |
+| Grafana        | http://grafana.localhost   | `grafana`        | "Sign in with Keycloak" button      |
+| Argo Workflows | http://workflows.localhost | `argo-workflows` | redirected to Keycloak (SSO only)   |
+| Jenkins        | http://jenkins.localhost   | `jenkins`        | redirected to Keycloak (`oic-auth`) |
+
+Keycloak admin console: http://keycloak.localhost — `admin` / `admin`.
+
+Seed users (realm `platform`):
+
+| User        | Password    | Group             | Effect                                        |
+| ----------- | ----------- | ----------------- | --------------------------------------------- |
+| `developer` | `developer` | `platform-admins` | admin on Argo CD + Grafana, full Jenkins/WF   |
+| `viewer`    | `viewer`    | `platform-viewers`| viewer on Grafana, read on the others         |
+
+Group → role mapping is driven by the `groups` claim:
+
+- **Argo CD** — `bootstrap/argocd-rbac-cm-sso-patch.yaml`: `g, platform-admins, role:admin`
+- **Grafana** — `role_attribute_path` in `apps/grafana/application.yaml`
+- **Argo Workflows / Jenkins** — any authenticated user is logged in (`rbac.enabled: false` / `loggedInUsersCanDoAnything`)
+
+## Notes and caveats
+
+- **Fixed client secrets** live in Git (`realm.yaml`, the app manifests, the
+  patch files). Fine for a throwaway local lab, not for anything shared.
+- **Dev mode / H2** — Keycloak state is in-memory. A pod restart reimports the
+  realm from Git, so any manual change in the admin console is lost.
+- **Port 80** — SSO relies on `http://keycloak.localhost` resolving identically
+  from the browser and from inside the cluster. Keep the host port at 80.
+- Keycloak escape hatches remain: Argo CD local `admin`, Jenkins
+  `admin` / `admin123` at `/login`.
+- SSO only works after the `keycloak` app is Synced/Healthy:
+  `argocd app wait keycloak --grpc-web --timeout 600`. The consuming apps may
+  crash-loop or show login errors until then, then self-heal.
+- `oic-auth` config keys occasionally change between plugin majors; if Jenkins
+  login breaks, check `apps/jenkins/application.yaml` against the installed
+  plugin's JCasC schema at `http://jenkins.localhost/manage/configuration-as-code/`.

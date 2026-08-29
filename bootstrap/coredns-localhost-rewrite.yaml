@@ -1,0 +1,20 @@
+# Lets in-cluster clients (Argo CD, Grafana, Jenkins, Argo Workflows) resolve the
+# *.localhost ingress hostnames - notably keycloak.localhost - so the OIDC issuer
+# URL is identical from the browser and from inside the cluster.
+#
+# k3s CoreDNS imports /etc/coredns/custom/*.override into its main server block.
+# Any *.localhost name is answered with a CNAME to the Traefik service, which
+# CoreDNS then resolves via the kubernetes plugin. Clients follow the CNAME, so
+# the response is accepted; Traefik routes to the right Ingress by Host header.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  localhost.override: |
+    template IN ANY localhost {
+      match ".*\.localhost\.$"
+      answer "{{ .Name }} 60 IN CNAME traefik.kube-system.svc.cluster.local."
+      fallthrough
+    }
