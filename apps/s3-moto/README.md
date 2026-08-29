@@ -52,7 +52,7 @@ Argo Events  EventSource → Sensor  ── submits ──▶  Workflow: s3-moto
                           sets .spec.source.kustomize.images on the s3-moto App
                                                                    │
                                           Argo CD renders + syncs ─┘  → new pod
-```text
+```
 
 - `app/Dockerfile` + `app/main.py` are the build source (not synced by Argo CD).
 - `image-updater.yaml` is an `ImageUpdater` CR (Image Updater v1.x): watch
@@ -75,7 +75,7 @@ argo -n argo-workflows list                       # watch s3-moto-build-*
 # 3. Image Updater rolls it out within ~2-3 min (or force it):
 argocd app sync s3-moto
 curl -s http://s3-moto.localhost/                 # new code, entries intact
-```text
+```
 
 Run pieces by hand:
 
@@ -83,7 +83,7 @@ Run pieces by hand:
 argo submit -n argo-workflows --from workflowtemplate/s3-moto-build --watch
 argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform -p mode=teardown --watch
 argocd app delete s3-moto      # PreDelete hook runs terraform destroy first
-```text
+```
 
 ## Honest limitations
 
