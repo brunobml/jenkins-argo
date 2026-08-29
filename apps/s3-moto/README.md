@@ -26,15 +26,20 @@ Every `argocd app sync` (Git change, or an Image Updater write-back):
 
 | Phase / wave | Resource | Effect |
 | --- | --- | --- |
-| PreSync -2 | `rbac.yaml` Role/RoleBinding | let the workflow SA write the infra Secret into `s3-moto` |
-| PreSync -1 | `workflowtemplate.yaml` | the provisioning pipeline definition (re-applied ⇒ never stale) |
-| PreSync 0 | `provision-workflow.yaml` | `terraform apply` → `verify` → `publish-config` writes the `s3-moto-infra` Secret. Argo CD **blocks** until `Succeeded`. `BeforeHookCreation` ⇒ fresh each sync |
-| Sync | `app.yaml` (+ `image-updater.yaml`, `ci-*.yaml`) | the guestbook Deployment/Service/Ingress; `envFrom` the `s3-moto-infra` Secret |
-| PreDelete | `teardown-workflow.yaml` | `terraform destroy` on `argocd app delete s3-moto` |
+| PreSync -1 | `workflowtemplate.yaml` (in `argo-workflows`) | the provisioning pipeline definition (re-applied ⇒ never stale) |
+| PreSync 0 | `provision-workflow.yaml` (in `argo-workflows`) | `terraform apply` → `verify`. Argo CD **blocks** until `Succeeded`. `BeforeHookCreation` ⇒ fresh each sync |
+| Sync | `app.yaml` (+ `image-updater.yaml`, `ci-*.yaml`) | `s3-moto-config` ConfigMap + the guestbook Deployment/Service/Ingress |
+| PreDelete | `teardown-workflow.yaml` (in `argo-workflows`) | `terraform destroy` on `argocd app delete s3-moto` |
 
-**The real dependency:** the app `envFrom`s `s3-moto-infra`. No Secret → the
-Deployment can't start. The PreSync provisioning is what makes it exist, and it
-carries the *actual* `terraform output` (bucket name), not a hard-coded value.
+**The infra→app link:** the app `envFrom`s the Git-managed `s3-moto-config`
+ConfigMap (bucket name, endpoint). The PreSync workflow makes sure that bucket
+actually exists. If it doesn't (workflow hasn't run yet), the app serves a 503
+"infra not ready" page — it does not crash-loop.
+
+**Self-healing:** all the hooks live in `argo-workflows`, and the app's config
+is a plain ConfigMap, so `kubectl delete namespace s3-moto` heals on its own —
+Argo CD recreates the namespace, ConfigMap and app; the bucket (and its entries)
+survived in Moto. Tested: back to Healthy in ~75s, no manual steps.
 
 ### Build loop (Argo Workflows + Argo Events + Image Updater)
 
@@ -96,6 +101,10 @@ argocd app delete s3-moto      # PreDelete hook runs terraform destroy first
   rollout. Idempotent (`import` → `plan` → `apply`), just not free.
 - **Image Updater → deploy lag** is the Argo CD reconcile interval (~3 min)
   unless you `argocd app sync`.
+- **Argo CD self-heal skips PreSync hooks.** After `kubectl delete namespace`,
+  the auto-sync recreates the app but not the provisioning workflow — fine here
+  because the app degrades gracefully, but if you *do* want the bucket
+  re-verified, run `argocd app sync s3-moto`.
 - **The registry is HTTP and unauthenticated**, images are `--insecure`. Fine
   for an in-cluster lab registry, not for anything shared.
 - Moto is a mock — a green run is not a real AWS plan.
