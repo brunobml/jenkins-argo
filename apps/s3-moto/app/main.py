@@ -15,8 +15,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-import boto3
-from botocore.config import Config
+import boto3  # type: ignore[import-not-found]
+from botocore.config import Config  # type: ignore[import-not-found]
 
 BUCKET = os.environ["BUCKET_NAME"]
 ENDPOINT = os.environ.get("AWS_ENDPOINT_URL") or None
