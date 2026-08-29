@@ -40,10 +40,6 @@ spec:
                 groupsFieldName: "groups"
                 disableSslVerification: true
                 logoutFromOpenidProvider: true
-                escapeHatchEnabled: true
-                escapeHatchUsername: "admin"
-                escapeHatchSecret: "admin123"
-                escapeHatchGroup: "platform-admins"
             authorizationStrategy: |-
               loggedInUsersCanDoAnything:
                 allowAnonymousRead: false

@@ -54,6 +54,7 @@ spec:
               pathType: Prefix
 
             sso:
+              enabled: true
               issuer: http://keycloak.localhost/realms/platform
               clientId:
                 name: argo-workflows-sso
