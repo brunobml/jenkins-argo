@@ -18,6 +18,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: argocd
 
+  # Argo CD Image Updater (write-back method "argocd") sets kustomize image
+  # overrides on child Applications - let it, don't fight it from the root.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jqPathExpressions:
+        - .spec.source.kustomize.images
+
   syncPolicy:
     automated:
       prune: true

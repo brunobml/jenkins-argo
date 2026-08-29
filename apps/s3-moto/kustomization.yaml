@@ -9,12 +9,9 @@ resources:
   - manifests/ci-build-template.yaml
   - manifests/app.yaml
 
-# Phase A: ship the app code as a ConfigMap built from the real source file.
-# The name gets a content hash, so editing app/main.py rolls the Deployment.
-# (resources keep the namespaces declared in their own manifests - the
-# WorkflowTemplate/Workflows must stay in argo-workflows.)
-configMapGenerator:
-  - name: s3-moto-app-code
-    namespace: s3-moto
-    files:
-      - app/main.py
+# Seed tag. Argo CD Image Updater (write-back method "argocd") overrides this by
+# setting spec.source.kustomize.images on the s3-moto Application as new images
+# land in the registry; that override wins at render time.
+images:
+  - name: k3d-registry:5000/s3-moto-app
+    newTag: 85b6c8a

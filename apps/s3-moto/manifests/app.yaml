@@ -4,9 +4,9 @@
 # workflow writes from `terraform output`. No Secret -> the Deployment cannot
 # start -> the Argo CD app is not Healthy. That is the real infra->app dependency.
 #
-# Phase A runs the code from a ConfigMap (kustomize configMapGenerator over
-# app/main.py). Phase B replaces the ConfigMap with a container image built
-# by the CI workflow.
+# The image is built by the s3-moto-build workflow (kaniko) and kept current by
+# Argo CD Image Updater (see application.yaml annotations). The tag here is just
+# the seed - Image Updater rewrites it via the kustomize images override.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -33,12 +33,7 @@ spec:
       serviceAccountName: s3-moto-app
       containers:
         - name: app
-          image: python:3.12-slim
-          command: [sh, -ceu]
-          args:
-            - |
-              pip install --quiet --root-user-action=ignore boto3
-              exec python /app/main.py
+          image: k3d-registry:5000/s3-moto-app:85b6c8a
           ports:
             - name: http
               containerPort: 8080
@@ -51,12 +46,9 @@ spec:
               value: "test"
             - name: AWS_SECRET_ACCESS_KEY
               value: "test"
-          volumeMounts:
-            - name: code
-              mountPath: /app
           startupProbe:
             httpGet: { path: /healthz, port: http }
-            failureThreshold: 40
+            failureThreshold: 20
             periodSeconds: 3
           readinessProbe:
             httpGet: { path: /healthz, port: http }
@@ -67,10 +59,6 @@ spec:
               memory: 96Mi
             limits:
               memory: 192Mi
-      volumes:
-        - name: code
-          configMap:
-            name: s3-moto-app-code
 ---
 apiVersion: v1
 kind: Service
