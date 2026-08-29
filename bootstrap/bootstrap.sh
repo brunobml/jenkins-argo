@@ -161,18 +161,27 @@ cat <<EOF
 
 $(printf '\033[1;32m==> Bootstrap complete\033[0m')
 
-  Argo CD UI : http://${ARGOCD_ADDR}
-  Username   : admin  (local fallback)
-  Password   : ${ARGOCD_PASSWORD}
+  Application URLs
+  ---------------------------------------------------------------------
+  Argo CD             http://${ARGOCD_ADDR}
+  Keycloak            http://keycloak.localhost
+  Grafana            http://grafana.localhost
+  Jenkins            http://jenkins.localhost
+  Argo Workflows     http://workflows.localhost
+  Argo Rollouts      http://rollouts.localhost
+  Prometheus         http://prometheus.localhost
+  Alertmanager       http://alertmanager.localhost
+  ---------------------------------------------------------------------
+
+  Argo CD admin (local fallback) : admin / ${ARGOCD_PASSWORD}
+  Keycloak admin                 : admin / admin
+  SSO user (all UIs)             : developer / developer   (group: platform-admins)
 
   argocd CLI login (copy/paste):
 
     argocd login ${ARGOCD_ADDR} --username admin --password '${ARGOCD_PASSWORD}' --plaintext --insecure --grpc-web
 
-  Keycloak (SSO)      : http://keycloak.localhost   admin / admin
-  SSO test user       : developer / developer   (group: platform-admins)
-
-  Add '127.0.0.1  argocd.localhost keycloak.localhost grafana.localhost jenkins.localhost workflows.localhost prometheus.localhost' to /etc/hosts if *.localhost does not resolve.
+  Add '127.0.0.1  argocd.localhost keycloak.localhost grafana.localhost jenkins.localhost workflows.localhost rollouts.localhost prometheus.localhost alertmanager.localhost' to /etc/hosts if *.localhost does not resolve.
 
   SSO for Argo CD, Grafana, Jenkins and Argo Workflows becomes usable once the
   'keycloak' Argo CD application reports Synced/Healthy:
