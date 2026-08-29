@@ -13,6 +13,10 @@ spec:
     helm:
       releaseName: grafana
       valuesObject:
+        # The client secret is intentionally inlined (lab-only fixed secret),
+        # so opt out of the chart's leaked-secret assertion.
+        assertNoLeakedSecrets: false
+
         service:
           type: ClusterIP
 
