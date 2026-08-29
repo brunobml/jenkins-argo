@@ -21,6 +21,13 @@ HTTP_PORT="${HTTP_PORT:-80}"
 HTTPS_PORT="${HTTPS_PORT:-443}"
 AGENTS="${AGENTS:-2}"
 
+# In-cluster image registry for the CI build workflows. Name has no ".localhost"
+# suffix on purpose - the CoreDNS *.localhost rewrite would otherwise hijack it.
+# Reachable as k3d-registry:5111 from pods and nodes; images are built in-cluster
+# (kaniko) so the host never needs to push to it.
+REGISTRY_NAME="${REGISTRY_NAME:-k3d-registry}"
+REGISTRY_PORT="${REGISTRY_PORT:-5111}"
+
 # Address the argocd CLI / browser use to reach Argo CD.
 ARGOCD_ADDR="argocd.localhost"
 [[ "${HTTP_PORT}" != "80" ]] && ARGOCD_ADDR="argocd.localhost:${HTTP_PORT}"
@@ -66,11 +73,12 @@ if [[ "${SKIP_CLUSTER}" == "true" ]]; then
 elif k3d cluster list 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER_NAME}"; then
   log "k3d cluster '${CLUSTER_NAME}' already exists - reusing it"
 else
-  log "Creating k3d cluster '${CLUSTER_NAME}'"
+  log "Creating k3d cluster '${CLUSTER_NAME}' (with registry ${REGISTRY_NAME}:${REGISTRY_PORT})"
   k3d cluster create "${CLUSTER_NAME}" \
     --api-port "${API_PORT}" \
     -p "${HTTP_PORT}:80@loadbalancer" \
     -p "${HTTPS_PORT}:443@loadbalancer" \
+    --registry-create "${REGISTRY_NAME}:0.0.0.0:${REGISTRY_PORT}" \
     --agents "${AGENTS}"
 fi
 
@@ -217,6 +225,8 @@ $(printf '\033[1;32m==> Bootstrap complete\033[0m')
   Prometheus       http://prometheus.localhost
   Alertmanager     http://alertmanager.localhost
   ---------------------------------------------------------------------
+
+  Image registry   ${REGISTRY_NAME}:${REGISTRY_PORT}   (in-cluster; CI workflows push here)
 
   Argo CD admin (local fallback) : admin / ${ARGOCD_PASSWORD}
   Keycloak admin                 : admin / admin
