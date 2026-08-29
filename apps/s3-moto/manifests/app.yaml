@@ -1,0 +1,74 @@
+# The "app that runs on AWS": a workload that reads/writes an S3 bucket.
+# It is written exactly as it would be for real AWS - the only lab-specific
+# bits are AWS_ENDPOINT_URL (point the SDK at Moto) and the dummy credentials.
+# For real AWS: drop AWS_ENDPOINT_URL and the static keys, and give the
+# ServiceAccount an IAM role (IRSA / Pod Identity) instead.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-consumer
+  namespace: s3-moto
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-consumer-config
+  namespace: s3-moto
+data:
+  AWS_DEFAULT_REGION: us-east-1
+  # Moto on the k3d host. Remove this key to talk to real AWS S3.
+  AWS_ENDPOINT_URL: http://host.k3d.internal:5000
+  # Must match the bucket the s3-moto-terraform workflow creates.
+  BUCKET_NAME: s3-consumer-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-consumer
+  namespace: s3-moto
+  labels:
+    app: s3-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-consumer
+  template:
+    metadata:
+      labels:
+        app: s3-consumer
+    spec:
+      serviceAccountName: s3-consumer
+      containers:
+        - name: app
+          image: amazon/aws-cli:2.17.20
+          command: [sh, -ceu]
+          args:
+            - |
+              echo "s3-consumer: writing a heartbeat to s3://$BUCKET_NAME every 30s"
+              while true; do
+                ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                if printf '%s %s\n' "$ts" "$(hostname)" \
+                     | aws s3 cp - "s3://$BUCKET_NAME/heartbeat/$(hostname).txt" 2>/tmp/err; then
+                  echo "[$ts] wrote heartbeat; bucket now contains:"
+                  aws s3 ls "s3://$BUCKET_NAME/" --recursive
+                else
+                  echo "[$ts] cannot reach s3://$BUCKET_NAME - run the s3-moto-terraform workflow first"
+                  sed 's/^/    /' /tmp/err
+                fi
+                sleep 30
+              done
+          envFrom:
+            - configMapRef:
+                name: s3-consumer-config
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "test"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "test"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

@@ -1,0 +1,145 @@
+# Provisioning pipeline for the s3-consumer app: runs Terraform to create the
+# S3 bucket the app expects, then verifies it with the AWS CLI.
+#
+# Lives in the argo-workflows namespace because the controller is installed with
+# singleNamespace=true (it only watches argo-workflows).
+#
+# Run it:
+#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform --watch
+#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform -p cleanup=true --watch
+# or without the argo CLI:
+#   kubectl -n argo-workflows create -f apps/s3-moto/examples/run.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: s3-moto-terraform
+  namespace: argo-workflows
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: main
+
+  arguments:
+    parameters:
+      - name: bucket_name
+        value: s3-consumer-demo
+      - name: git_revision
+        value: main
+      # host.k3d.internal:5000 = Moto on the k3d host. Set to "" for real AWS.
+      - name: s3_endpoint
+        value: http://host.k3d.internal:5000
+      # cleanup=true appends a `terraform destroy` step.
+      - name: cleanup
+        value: "false"
+
+  # Ephemeral scratch space shared by the steps; deleted when the workflow ends.
+  volumeClaimTemplates:
+    - metadata:
+        name: workdir
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
+
+  templates:
+    - name: main
+      steps:
+        - - name: checkout
+            template: checkout
+        - - name: apply
+            template: terraform
+            arguments:
+              parameters:
+                - name: action
+                  value: apply
+        - - name: verify
+            template: verify
+        - - name: destroy
+            template: terraform
+            when: "{{workflow.parameters.cleanup}} == true"
+            arguments:
+              parameters:
+                - name: action
+                  value: destroy
+
+    # 1. Pull this repo onto the shared volume.
+    - name: checkout
+      inputs:
+        artifacts:
+          - name: repo
+            path: /work/src
+            git:
+              repo: https://github.com/brunobml/jenkins-argo.git
+              revision: "{{workflow.parameters.git_revision}}"
+              depth: 1
+      container:
+        image: alpine:3.22
+        command: [sh, -c]
+        args: ["ls -la /work/src/apps/s3-moto/terraform"]
+        volumeMounts:
+          - name: workdir
+            mountPath: /work
+
+    # 2/4. terraform init + (apply | destroy) in apps/s3-moto/terraform.
+    - name: terraform
+      inputs:
+        parameters:
+          - name: action
+      container:
+        image: hashicorp/terraform:1.9.8
+        command: [sh, -ceu]
+        args:
+          - |
+            cd /work/src/apps/s3-moto/terraform
+            terraform init -input=false -no-color
+            case "{{inputs.parameters.action}}" in
+              apply)
+                terraform plan  -input=false -no-color
+                terraform apply -input=false -auto-approve -no-color
+                echo "--- outputs ---"
+                terraform output -no-color
+                ;;
+              destroy)
+                terraform destroy -input=false -auto-approve -no-color
+                ;;
+            esac
+        workingDir: /work/src/apps/s3-moto/terraform
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            value: "test"
+          - name: AWS_SECRET_ACCESS_KEY
+            value: "test"
+          - name: AWS_DEFAULT_REGION
+            value: "us-east-1"
+          - name: TF_VAR_bucket_name
+            value: "{{workflow.parameters.bucket_name}}"
+          - name: TF_VAR_s3_endpoint
+            value: "{{workflow.parameters.s3_endpoint}}"
+          - name: TF_IN_AUTOMATION
+            value: "1"
+        volumeMounts:
+          - name: workdir
+            mountPath: /work
+
+    # 3. Prove the bucket really exists, independently of Terraform state.
+    - name: verify
+      container:
+        image: amazon/aws-cli:2.17.20
+        command: [sh, -ceu]
+        args:
+          - |
+            echo "== Buckets =="
+            aws s3 ls
+            echo
+            echo "== Objects in {{workflow.parameters.bucket_name}} =="
+            aws s3 ls "s3://{{workflow.parameters.bucket_name}}" --recursive
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            value: "test"
+          - name: AWS_SECRET_ACCESS_KEY
+            value: "test"
+          - name: AWS_DEFAULT_REGION
+            value: "us-east-1"
+          - name: AWS_ENDPOINT_URL
+            value: "{{workflow.parameters.s3_endpoint}}"

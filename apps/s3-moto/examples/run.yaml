@@ -1,0 +1,21 @@
+# A one-off run of the s3-moto-terraform WorkflowTemplate.
+#   kubectl -n argo-workflows create -f apps/s3-moto/examples/run.yaml
+# (use `create`, not `apply` - generateName needs a fresh name each run)
+#
+# Watch it:
+#   kubectl -n argo-workflows get wf -w
+#   argo -n argo-workflows watch @latest
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: s3-moto-
+  namespace: argo-workflows
+spec:
+  workflowTemplateRef:
+    name: s3-moto-terraform
+  arguments:
+    parameters:
+      - name: bucket_name
+        value: s3-consumer-demo
+      - name: cleanup
+        value: "false"
