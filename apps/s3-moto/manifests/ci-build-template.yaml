@@ -9,8 +9,7 @@ metadata:
 spec:
   serviceAccountName: argo-workflow
   entrypoint: main
-  podGC:
-    strategy: OnWorkflowSuccess
+  # podGC + ttlStrategy come from controller.workflowDefaults (apps/argo-workflows)
 
   arguments:
     parameters:

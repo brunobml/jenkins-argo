@@ -35,8 +35,7 @@ spec:
       - name: mode
         value: deploy
 
-  podGC:
-    strategy: OnWorkflowSuccess
+  # podGC + ttlStrategy come from controller.workflowDefaults (apps/argo-workflows)
 
   # Ephemeral scratch space shared by the steps; deleted when the workflow ends.
   volumeClaimTemplates:

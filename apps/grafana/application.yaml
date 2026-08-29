@@ -405,6 +405,81 @@ spec:
                   "version": 1
                 }
 
+            argo-workflows-logs:
+              json: |
+                {
+                  "annotations": { "list": [] },
+                  "editable": false,
+                  "templating": {
+                    "list": [
+                      {
+                        "name": "workflow",
+                        "label": "Workflow pod",
+                        "type": "query",
+                        "datasource": { "type": "loki", "uid": "loki" },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\"}, pod)",
+                        "query": { "label": "pod", "stream": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\"}", "type": 1 },
+                        "includeAll": true,
+                        "allValue": ".+",
+                        "multi": true,
+                        "refresh": 2,
+                        "sort": 2,
+                        "current": { "text": "All", "value": "$__all" }
+                      },
+                      {
+                        "name": "search",
+                        "label": "Filter text",
+                        "type": "textbox",
+                        "current": { "text": "", "value": "" }
+                      }
+                    ]
+                  },
+                  "panels": [
+                    {
+                      "type": "timeseries",
+                      "title": "Log volume by workflow pod",
+                      "datasource": { "type": "loki", "uid": "loki" },
+                      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 0 },
+                      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true } },
+                      "targets": [
+                        {
+                          "expr": "sum by (pod) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\", pod=~\"$workflow\"} |~ \"(?i)$search\" [$__auto]))",
+                          "legendFormat": "{{pod}}",
+                          "refId": "A"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "logs",
+                      "title": "Step logs (from pods, then MinIO once GC'd)",
+                      "datasource": { "type": "loki", "uid": "loki" },
+                      "gridPos": { "h": 23, "w": 24, "x": 0, "y": 7 },
+                      "options": {
+                        "showTime": true,
+                        "wrapLogMessage": true,
+                        "prettifyLogMessage": false,
+                        "enableLogDetails": true,
+                        "dedupStrategy": "none",
+                        "sortOrder": "Descending"
+                      },
+                      "targets": [
+                        {
+                          "expr": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\", pod=~\"$workflow\"} |~ \"(?i)$search\"",
+                          "refId": "A"
+                        }
+                      ]
+                    }
+                  ],
+                  "refresh": "30s",
+                  "schemaVersion": 41,
+                  "tags": ["argo", "workflows", "logs", "gitops"],
+                  "time": { "from": "now-6h", "to": "now" },
+                  "timezone": "browser",
+                  "title": "Argo Workflows Logs",
+                  "uid": "argo-workflows-logs",
+                  "version": 1
+                }
+
         deploymentStrategy:
           type: Recreate
         initChownData:

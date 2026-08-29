@@ -24,9 +24,34 @@ spec:
             rbac:
               create: true
 
+          # Persist step logs + artifacts to MinIO so `argo logs` and the UI
+          # still work after the step pods are garbage-collected.
+          artifactRepository:
+            archiveLogs: true
+            s3:
+              endpoint: minio.minio.svc.cluster.local:9000
+              bucket: argo-workflows
+              insecure: true
+              accessKeySecret:
+                name: argo-artifacts-minio
+                key: accesskey
+              secretKeySecret:
+                name: argo-artifacts-minio
+                key: secretkey
+
           controller:
             workflowNamespaces:
               - argo-workflows
+
+            # Keep step pods 30 min after a workflow finishes (live debugging),
+            # keep the Workflow object 7 days (UI + archived-log links).
+            workflowDefaults:
+              spec:
+                podGC:
+                  strategy: OnWorkflowCompletion
+                  deleteDelayDuration: 30m
+                ttlStrategy:
+                  secondsAfterCompletion: 604800
 
             metricsConfig:
               enabled: true
