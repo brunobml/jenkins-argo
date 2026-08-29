@@ -488,7 +488,7 @@ spec:
                       "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true } },
                       "targets": [
                         {
-                          "expr": "sum by (pod) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", pod=~\"$step\"} |~ \"(?i)$search\" [$__auto]))",
+                          "expr": "sum by (pod) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", container=\"main\", pod=~\"$step\"} |~ \"(?i)$search\" [$__auto]))",
                           "legendFormat": "{{pod}}",
                           "refId": "A"
                         }
@@ -511,7 +511,7 @@ spec:
                       },
                       "targets": [
                         {
-                          "expr": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", pod=~\"$step\"} |~ \"(?i)$search\"",
+                          "expr": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", container=\"main\", pod=~\"$step\"} |~ \"(?i)$search\"",
                           "refId": "A"
                         }
                       ]
