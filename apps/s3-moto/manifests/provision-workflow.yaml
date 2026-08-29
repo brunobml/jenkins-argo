@@ -1,18 +1,21 @@
-# Sync wave 1: Argo CD creates this Workflow after the WorkflowTemplate (wave 0)
-# and then BLOCKS the rest of the sync until it reports Succeeded (Argo CD's
-# health check for argoproj.io/Workflow). That is what makes "provision the
-# bucket, THEN deploy the app" work.
+# PreSync hook (wave 0): runs the infra pipeline on every Argo CD sync.
 #
-# Fixed name => the same spec on every sync => Argo CD does not re-run it once it
-# has succeeded. To force a re-provision: kubectl -n argo-workflows delete wf
-# s3-moto-provision  (Argo CD recreates it on the next sync).
+# BeforeHookCreation => Argo CD deletes the old Workflow and creates a fresh one
+# each sync (so it never runs a stale template), and BLOCKS the rest of the sync
+# until it reports Succeeded - that is what guarantees "bucket provisioned +
+# s3-moto-infra Secret written" before the app Deployment is applied.
+#
+# terraform apply is idempotent (import -> plan -> apply), so re-running it on
+# every sync just reconciles the infra.
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   name: s3-moto-provision
   namespace: argo-workflows
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   workflowTemplateRef:
     name: s3-moto-terraform

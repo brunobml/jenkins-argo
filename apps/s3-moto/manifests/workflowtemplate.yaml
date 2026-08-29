@@ -15,7 +15,10 @@ metadata:
   name: s3-moto-terraform
   namespace: argo-workflows
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    # PreSync hook (wave -1): (re)applied on every sync so the pipeline
+    # definition is never stale, then the provisioning Workflow (wave 0) runs it.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   serviceAccountName: argo-workflow
   entrypoint: main

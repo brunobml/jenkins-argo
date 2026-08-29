@@ -5,15 +5,13 @@
 # start -> the Argo CD app is not Healthy. That is the real infra->app dependency.
 #
 # Phase A runs the code from a ConfigMap (kustomize configMapGenerator over
-# ../app/main.py). Phase B replaces the ConfigMap with a container image built
+# app/main.py). Phase B replaces the ConfigMap with a container image built
 # by the CI workflow.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: s3-moto-app
   namespace: s3-moto
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,8 +20,6 @@ metadata:
   namespace: s3-moto
   labels:
     app: s3-moto-app
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
   selector:
@@ -60,7 +56,7 @@ spec:
               mountPath: /app
           startupProbe:
             httpGet: { path: /healthz, port: http }
-            failureThreshold: 30
+            failureThreshold: 40
             periodSeconds: 3
           readinessProbe:
             httpGet: { path: /healthz, port: http }
@@ -81,8 +77,6 @@ kind: Service
 metadata:
   name: s3-moto-app
   namespace: s3-moto
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   selector:
     app: s3-moto-app
@@ -96,8 +90,6 @@ kind: Ingress
 metadata:
   name: s3-moto-app
   namespace: s3-moto
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   ingressClassName: traefik
   rules:
