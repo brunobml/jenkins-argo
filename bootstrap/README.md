@@ -210,8 +210,10 @@ Group → role mapping is driven by the `groups` claim:
   realm from Git, so any manual change in the admin console is lost.
 - **Port 80** — SSO relies on `http://keycloak.localhost` resolving identically
   from the browser and from inside the cluster. Keep the host port at 80.
-- Keycloak escape hatches remain: Argo CD local `admin`, Jenkins
-  `admin` / `admin123` at `/login`.
+- Fallback: Argo CD keeps its local `admin` user. **Jenkins has no local
+  fallback** - if Keycloak is unreachable, revert the `securityRealm` block in
+  `apps/jenkins/application.yaml` (or set it back to `local`) and let Argo CD
+  re-sync.
 - SSO only works after the `keycloak` app is Synced/Healthy:
   `argocd app wait keycloak --grpc-web --timeout 600`. The consuming apps may
   crash-loop or show login errors until then, then self-heal.
