@@ -1,106 +1,93 @@
-# s3-moto — deploying an app that depends on an AWS resource
+# s3-moto — infra-then-app continuous deployment with Argo CD + Argo Workflows
 
-A worked example of the common pattern:
+One Argo CD `Application` drives a full deploy chain:
 
-> **The app runs on Kubernetes but needs a cloud resource (here: an S3 bucket).
-> Argo CD deploys the app and the pipeline; an Argo Workflow runs Terraform to
-> provision the cloud resource.**
+1. **provision** the cloud resource (S3 bucket) with Terraform, run in an Argo
+   Workflow, and
+2. **deploy** an artifact onto it (`index.html` → `s3://…/index.html`), and
+3. keep that artifact in sync with Git — edit the file, push, it re-deploys.
 
-[Moto](https://docs.getmoto.org/) stands in for AWS — it already runs on the
-k3d host at `localhost:5000`, reachable from inside the cluster as
-`http://host.k3d.internal:5000`. Point the same manifests and Terraform at real
-AWS by dropping the endpoint override and wiring real credentials.
+Analogy: the **bucket** is the infra (think: a cluster / DB / queue), the
+**`index.html`** is the app release running on it. [Moto](https://docs.getmoto.org/)
+stands in for AWS on the k3d host (`localhost:5000`, in-cluster
+`host.k3d.internal:5000`). Same manifests + Terraform run against real AWS by
+dropping the endpoint override and wiring real credentials.
 
-> **Moto must run with `S3_IGNORE_SUBDOMAIN_BUCKETNAME=1`** (already set in
-> `~/repos/moto/compose.yaml`). Without it, Moto reads the request `Host`
-> (`host.k3d.internal`) as `<bucket>.<domain>` and every S3 call fails with
-> `NoSuchBucket`. `localhost` works only because Moto special-cases it.
+> Moto must run with `S3_IGNORE_SUBDOMAIN_BUCKETNAME=1` (set in
+> `~/repos/moto/compose.yaml`) or every S3 call returns `NoSuchBucket`.
 
-```
-Git ──► Argo CD ──► s3-consumer Deployment              (namespace: s3-moto)
-                └─► s3-moto-terraform WorkflowTemplate  (namespace: argo-workflows)
+## How Argo CD sequences it
 
-you ──► argo submit ──► Workflow:  checkout ─► terraform apply ─► verify ─► [destroy]
-                                                    │
-                                                    ▼
-                                      Moto  (host.k3d.internal:5000)
-                                                    ▲
-                                                    │
-s3-consumer pod ── aws s3 cp heartbeat ─────────────┘
-```
+Argo CD has no built-in "run a workflow" action — you wire ordering with
+**sync waves** and **resource hooks**:
 
-## What Argo CD deploys
+| Order | Resource | File | Effect |
+| --- | --- | --- | --- |
+| wave 0 | `WorkflowTemplate s3-moto-terraform` | `manifests/workflowtemplate.yaml` | the reusable pipeline definition |
+| wave 1 | `Workflow s3-moto-provision` | `manifests/provision-workflow.yaml` | `terraform apply`; Argo CD **blocks** until it is `Succeeded` |
+| wave 2 | `ConfigMap s3-moto-artifact` + `s3-consumer` app | `manifests/artifact.yaml`, `manifests/app.yaml` | the artifact and a pod that reads it |
+| PostSync hook | `Job s3-moto-deploy` | `manifests/deploy-job.yaml` | `aws s3 cp` the artifact to the bucket, every sync |
+| PreDelete hook | `Workflow s3-moto-teardown` | `manifests/teardown-workflow.yaml` | `terraform destroy` when you `argocd app delete s3-moto` |
 
-| File | Resource | Namespace |
-| --- | --- | --- |
-| `manifests/app.yaml` | `s3-consumer` Deployment + SA + ConfigMap | `s3-moto` |
-| `manifests/workflowtemplate.yaml` | `s3-moto-terraform` WorkflowTemplate | `argo-workflows` |
+`terraform/*.tf` is **not** synced by Argo CD — the workflow clones it from Git
+at run time. Terraform owns only the bucket; the artifact is the PostSync job's
+job. State is per-run (ephemeral volume) so `apply` runs `terraform import` first
+to stay idempotent.
 
-`terraform/*.tf` is **not** applied by Argo CD — the workflow clones it from Git
-at run time. One Argo CD `Application` managing two namespaces is fine; the
-`default` project has no namespace restrictions. The WorkflowTemplate must live
-in `argo-workflows` because the controller runs with `singleNamespace=true`.
-
-## The app (`s3-consumer`)
-
-A loop that writes a heartbeat object to `s3://s3-consumer-demo/` every 30s and
-lists the bucket. It's ordinary AWS-SDK code; the only lab-specific parts are:
-
-- `AWS_ENDPOINT_URL=http://host.k3d.internal:5000` — sends S3 calls to Moto
-- static `test` / `test` credentials
-
-For real AWS: remove both, and attach an IAM role to the `s3-consumer`
-ServiceAccount (IRSA on EKS, or Pod Identity).
-
-Until the bucket exists the pod stays up and logs
-`cannot reach s3://... - run the s3-moto-terraform workflow first`.
-
-## Run the provisioning workflow
+## The CD loop
 
 ```bash
-# with the argo CLI
-argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform --watch
+# 1. edit the release
+$EDITOR apps/s3-moto/artifact.yaml     # change "Release v1" -> "Release v2"
+git commit -am "s3-moto: release v2" && git push
 
-# or without it
-kubectl -n argo-workflows create -f apps/s3-moto/examples/run.yaml
-kubectl -n argo-workflows get wf -w
+# 2. Argo CD syncs (or: argocd app sync s3-moto)
+#    - provision workflow: already Succeeded, no-op
+#    - ConfigMap updates
+#    - PostSync job uploads the new index.html
 
-# or the UI: http://workflows.localhost -> Submit new workflow -> s3-moto-terraform
+# 3. watch the app pick it up
+kubectl -n s3-moto logs -f deploy/s3-consumer
+#   --- [..] current release ---
+#   <h1>Hello from s3-moto</h1>
+#   <p>Release v2 - ...</p>
 ```
 
-Steps: **checkout** (git clone to a shared volume) → **apply** (`terraform init`
-+ `plan` + `apply`) → **verify** (`aws s3 ls`) → **destroy** (only if
-`cleanup=true`).
+`git revert` the release commit → the previous `index.html` is restored in S3.
 
-### Parameters
+## First deploy
 
-| Name | Default | Meaning |
-| --- | --- | --- |
-| `bucket_name` | `s3-consumer-demo` | bucket to create (keep in sync with `app.yaml`) |
-| `git_revision` | `main` | ref of this repo to check out |
-| `s3_endpoint` | `http://host.k3d.internal:5000` | S3 API URL; `""` = real AWS |
-| `cleanup` | `false` | append a `terraform destroy` step |
-
-## Check the result
+Commit + push; the root app picks up `s3-moto`. Then:
 
 ```bash
-kubectl -n s3-moto logs deploy/s3-consumer --tail=20
-
-# from the host, straight against Moto
+kubectl -n argocd get app s3-moto
+argo -n argo-workflows list                       # the provision workflow
+kubectl -n s3-moto get pods,cm,job
+kubectl -n s3-moto logs deploy/s3-consumer
 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
-  aws --endpoint-url http://localhost:5000 --region us-east-1 \
-  s3 ls s3://s3-consumer-demo --recursive
+  aws --endpoint-url http://localhost:5000 --region us-east-1 s3 ls s3://s3-consumer-demo --recursive
 ```
 
-## Notes
+## Re-provision / tear down
 
-- **Ephemeral state.** Moto keeps resources until its container restarts; the
-  workflow's Terraform state lives on a per-run volume and is thrown away with
-  the workflow. So each run starts with an empty state file — the `apply` step
-  runs `terraform import` first to adopt a bucket/object that already exists,
-  which keeps re-runs idempotent and lets `cleanup=true` destroy cleanly.
-- **Reset Moto** (on the host): `docker compose -f ~/repos/moto/compose.yaml restart`.
-- The workflow needs egress to `github.com` and `registry.terraform.io`.
-- Terraform's `provider "aws"` block (`terraform/main.tf`) toggles Moto vs AWS
-  behaviour entirely on `var.s3_endpoint` — a `dynamic "endpoints"` block, and
-  the AWS-only checks/credentials are skipped only when an endpoint is set.
+```bash
+# force the provision workflow to run again (e.g. after editing the template)
+kubectl -n argo-workflows delete wf s3-moto-provision      # Argo CD recreates it
+
+# destroy the bucket + everything: PreDelete hook runs terraform destroy
+argocd app delete s3-moto        # NOT `kubectl delete application` - that skips hooks
+
+# manual teardown without deleting the app
+argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform -p mode=teardown --watch
+```
+
+## Honest limitations
+
+- Argo CD can't see inside S3 — it can't detect that the S3 object drifted from
+  Git. The PostSync job just re-uploads on **every** sync (idempotent, cheap).
+  True drift-detection of a cloud resource needs something like Crossplane
+  (bucket/object as Kubernetes CRs).
+- Provisioning by Argo CD is a deliberate lab choice. In the real world infra is
+  usually created by CI/Crossplane/a management cluster; Argo CD deploys the app.
+- Moto is a mock. A green run here is not a substitute for a real plan against an
+  isolated AWS account.

@@ -21,11 +21,13 @@ provider "aws" {
   }
 }
 
+# Terraform owns the infra only (the bucket). The application artifact
+# (index.html) is uploaded separately by the Argo CD PostSync job.
 resource "aws_s3_bucket" "app" {
   bucket = var.bucket_name
 
-  # The s3-consumer app writes objects Terraform does not track, so let
-  # `terraform destroy` empty the bucket before removing it.
+  # Objects are managed outside Terraform, so let `terraform destroy` empty
+  # the bucket before removing it.
   force_destroy = true
 
   tags = {
@@ -33,11 +35,4 @@ resource "aws_s3_bucket" "app" {
     ManagedBy   = "terraform"
     DeployedVia = "argo-workflows"
   }
-}
-
-resource "aws_s3_object" "readme" {
-  bucket       = aws_s3_bucket.app.id
-  key          = "README.txt"
-  content      = "Bucket provisioned by the s3-moto-terraform Argo Workflow.\n"
-  content_type = "text/plain"
 }

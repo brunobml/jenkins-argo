@@ -1,24 +1,29 @@
-# The "app that runs on AWS": a workload that reads/writes an S3 bucket.
-# It is written exactly as it would be for real AWS - the only lab-specific
-# bits are AWS_ENDPOINT_URL (point the SDK at Moto) and the dummy credentials.
-# For real AWS: drop AWS_ENDPOINT_URL and the static keys, and give the
-# ServiceAccount an IAM role (IRSA / Pod Identity) instead.
+# The "app that runs on AWS": it reads its release artifact (index.html) from
+# the S3 bucket every 15s and prints it. Watch its logs after editing
+# artifact.yaml + pushing - the new content shows up once Argo CD syncs and the
+# PostSync job re-uploads.
+#
+# Only lab-specific bits: AWS_ENDPOINT_URL (point the SDK at Moto) + dummy creds.
+# For real AWS: drop both, give the ServiceAccount an IAM role (IRSA/Pod Identity).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: s3-consumer
   namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: s3-consumer-config
   namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 data:
   AWS_DEFAULT_REGION: us-east-1
   # Moto on the k3d host. Remove this key to talk to real AWS S3.
   AWS_ENDPOINT_URL: http://host.k3d.internal:5000
-  # Must match the bucket the s3-moto-terraform workflow creates.
   BUCKET_NAME: s3-consumer-demo
 ---
 apiVersion: apps/v1
@@ -28,6 +33,8 @@ metadata:
   namespace: s3-moto
   labels:
     app: s3-consumer
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
   selector:
@@ -45,27 +52,21 @@ spec:
           command: [sh, -ceu]
           args:
             - |
-              echo "s3-consumer: writing a heartbeat to s3://$BUCKET_NAME every 30s"
+              echo "s3-consumer: reading s3://$BUCKET_NAME/index.html every 15s"
               while true; do
                 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                if printf '%s %s\n' "$ts" "$POD_NAME" \
-                     | aws s3 cp - "s3://$BUCKET_NAME/heartbeat/$POD_NAME.txt" 2>/tmp/err; then
-                  echo "[$ts] wrote heartbeat; bucket now contains:"
-                  aws s3 ls "s3://$BUCKET_NAME/" --recursive
+                if aws s3 cp "s3://$BUCKET_NAME/index.html" - 2>/tmp/err; then
+                  echo "--- [$ts] current release ---"
                 else
-                  echo "[$ts] cannot reach s3://$BUCKET_NAME - run the s3-moto-terraform workflow first"
+                  echo "[$ts] artifact not available yet - waiting for Argo CD to deploy it"
                   sed 's/^/    /' /tmp/err
                 fi
-                sleep 30
+                sleep 15
               done
           envFrom:
             - configMapRef:
                 name: s3-consumer-config
           env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
             - name: AWS_ACCESS_KEY_ID
               value: "test"
             - name: AWS_SECRET_ACCESS_KEY

@@ -1,0 +1,22 @@
+# PreDelete hook: when the s3-moto Argo CD app is deleted, run terraform destroy
+# first so the bucket is removed too. Argo CD runs this and waits for Succeeded
+# before pruning the rest of the app's resources.
+#
+#   argocd app delete s3-moto      # -> triggers this
+#
+# HookSucceeded delete policy: the teardown Workflow is cleaned up once it wins.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: s3-moto-teardown
+  namespace: argo-workflows
+  annotations:
+    argocd.argoproj.io/hook: PreDelete
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  workflowTemplateRef:
+    name: s3-moto-terraform
+  arguments:
+    parameters:
+      - name: mode
+        value: teardown

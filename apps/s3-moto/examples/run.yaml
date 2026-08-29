@@ -2,9 +2,7 @@
 #   kubectl -n argo-workflows create -f apps/s3-moto/examples/run.yaml
 # (use `create`, not `apply` - generateName needs a fresh name each run)
 #
-# Watch it:
-#   kubectl -n argo-workflows get wf -w
-#   argo -n argo-workflows watch @latest
+# mode: deploy (default) = terraform apply ; mode: teardown = terraform destroy
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -15,7 +13,5 @@ spec:
     name: s3-moto-terraform
   arguments:
     parameters:
-      - name: bucket_name
-        value: s3-consumer-demo
-      - name: cleanup
-        value: "false"
+      - name: mode
+        value: deploy

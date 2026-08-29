@@ -1,0 +1,22 @@
+# Sync wave 1: Argo CD creates this Workflow after the WorkflowTemplate (wave 0)
+# and then BLOCKS the rest of the sync until it reports Succeeded (Argo CD's
+# health check for argoproj.io/Workflow). That is what makes "provision the
+# bucket, THEN deploy the app" work.
+#
+# Fixed name => the same spec on every sync => Argo CD does not re-run it once it
+# has succeeded. To force a re-provision: kubectl -n argo-workflows delete wf
+# s3-moto-provision  (Argo CD recreates it on the next sync).
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: s3-moto-provision
+  namespace: argo-workflows
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  workflowTemplateRef:
+    name: s3-moto-terraform
+  arguments:
+    parameters:
+      - name: mode
+        value: deploy

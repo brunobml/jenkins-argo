@@ -1,19 +1,21 @@
-# Provisioning pipeline for the s3-consumer app: runs Terraform to create the
-# S3 bucket the app expects, then verifies it with the AWS CLI.
+# Infra pipeline for the s3-moto app. Two modes:
+#   mode=deploy   (default) : terraform apply  -> bucket exists, then verify
+#   mode=teardown           : terraform destroy -> bucket removed
+#
+# Argo CD drives this automatically (see provision-workflow.yaml / teardown-
+# workflow.yaml). You can also run it by hand:
+#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform --watch
+#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform -p mode=teardown --watch
 #
 # Lives in the argo-workflows namespace because the controller is installed with
 # singleNamespace=true (it only watches argo-workflows).
-#
-# Run it:
-#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform --watch
-#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-terraform -p cleanup=true --watch
-# or without the argo CLI:
-#   kubectl -n argo-workflows create -f apps/s3-moto/examples/run.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: s3-moto-terraform
   namespace: argo-workflows
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   serviceAccountName: argo-workflow
   entrypoint: main
@@ -27,9 +29,11 @@ spec:
       # host.k3d.internal:5000 = Moto on the k3d host. Set to "" for real AWS.
       - name: s3_endpoint
         value: http://host.k3d.internal:5000
-      # cleanup=true appends a `terraform destroy` step.
-      - name: cleanup
-        value: "false"
+      - name: mode
+        value: deploy
+
+  podGC:
+    strategy: OnWorkflowSuccess
 
   # Ephemeral scratch space shared by the steps; deleted when the workflow ends.
   volumeClaimTemplates:
@@ -49,15 +53,17 @@ spec:
             template: checkout
         - - name: apply
             template: terraform
+            when: "{{workflow.parameters.mode}} == deploy"
             arguments:
               parameters:
                 - name: action
                   value: apply
         - - name: verify
             template: verify
+            when: "{{workflow.parameters.mode}} == deploy"
         - - name: destroy
             template: terraform
-            when: "{{workflow.parameters.cleanup}} == true"
+            when: "{{workflow.parameters.mode}} == teardown"
             arguments:
               parameters:
                 - name: action
@@ -95,10 +101,9 @@ spec:
             terraform init -input=false -no-color
             case "{{inputs.parameters.action}}" in
               apply)
-                # State is per-run (ephemeral volume), so adopt anything that
+                # State is per-run (ephemeral volume), so adopt the bucket if it
                 # already exists in Moto before planning - keeps re-runs idempotent.
                 terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
-                terraform import -input=false -no-color aws_s3_object.readme "$TF_VAR_bucket_name/README.txt" 2>/dev/null || true
                 terraform plan  -input=false -no-color
                 terraform apply -input=false -auto-approve -no-color
                 echo "--- outputs ---"
@@ -106,7 +111,6 @@ spec:
                 ;;
               destroy)
                 terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
-                terraform import -input=false -no-color aws_s3_object.readme "$TF_VAR_bucket_name/README.txt" 2>/dev/null || true
                 terraform destroy -input=false -auto-approve -no-color
                 ;;
             esac

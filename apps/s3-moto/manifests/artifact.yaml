@@ -1,0 +1,18 @@
+# The deployable artifact. THIS is the file you edit in Git: change it, commit,
+# push -> Argo CD syncs the ConfigMap -> the PostSync upload job (deploy-job.yaml)
+# pushes the new content to s3://<bucket>/index.html.
+#
+# In the analogy: this ConfigMap is the application release; S3 is where it runs.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-moto-artifact
+  namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+data:
+  index.html: |
+    <!doctype html>
+    <title>s3-moto</title>
+    <h1>Hello from s3-moto</h1>
+    <p>Release v1 - deployed by Argo CD + Argo Workflows.</p>
