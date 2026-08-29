@@ -64,8 +64,10 @@ spec:
           server:
             enabled: true
 
+            # sso for the UI; server (SA-token) so the argo CLI / CI can auth too
             authModes:
               - sso
+              - server
 
             secure: false
 
