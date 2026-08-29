@@ -111,6 +111,9 @@ spec:
                 ;;
               destroy)
                 terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
+                # import brings force_destroy back as false; apply writes it to
+                # true in state so destroy will empty the bucket first.
+                terraform apply   -input=false -auto-approve -no-color
                 terraform destroy -input=false -auto-approve -no-color
                 ;;
             esac
