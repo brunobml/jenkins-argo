@@ -72,7 +72,8 @@ AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 
 ```bash
 # force the provision workflow to run again (e.g. after editing the template)
-kubectl -n argo-workflows delete wf s3-moto-provision      # Argo CD recreates it
+kubectl -n argo-workflows delete wf s3-moto-provision
+argocd app sync s3-moto        # recreates + re-runs it, then the PostSync upload
 
 # destroy the bucket + everything: PreDelete hook runs terraform destroy
 argocd app delete s3-moto        # NOT `kubectl delete application` - that skips hooks
