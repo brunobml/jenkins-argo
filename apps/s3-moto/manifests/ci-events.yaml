@@ -1,0 +1,111 @@
+# Argo Events: a webhook that fires the s3-moto-build workflow.
+#
+#   curl -XPOST http://s3-moto-ci.localhost/build \
+#     -H 'Content-Type: application/json' -d '{"revision":"main"}'
+#
+# Point a GitHub webhook (push events) at that URL to make it fully automatic.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-moto-ci-trigger
+  namespace: argo-events
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: s3-moto-ci-trigger
+  namespace: argo-workflows
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [create, get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: s3-moto-ci-trigger
+  namespace: argo-workflows
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: s3-moto-ci-trigger
+subjects:
+  - kind: ServiceAccount
+    name: s3-moto-ci-trigger
+    namespace: argo-events
+---
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: s3-moto-ci
+  namespace: argo-events
+spec:
+  service:
+    ports:
+      - name: webhook
+        port: 12000
+        targetPort: 12000
+  webhook:
+    build:
+      port: "12000"
+      endpoint: /build
+      method: POST
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: s3-moto-ci
+  namespace: argo-events
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: s3-moto-ci.localhost
+      http:
+        paths:
+          - path: /build
+            pathType: Prefix
+            backend:
+              service:
+                name: s3-moto-ci-eventsource-svc
+                port:
+                  number: 12000
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: s3-moto-ci
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: s3-moto-ci-trigger
+  dependencies:
+    - name: build-request
+      eventSourceName: s3-moto-ci
+      eventName: build
+  triggers:
+    - template:
+        name: submit-build
+        argoWorkflow:
+          operation: submit
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: s3-moto-build-
+                namespace: argo-workflows
+              spec:
+                workflowTemplateRef:
+                  name: s3-moto-build
+                arguments:
+                  parameters:
+                    - name: revision
+                      value: main
+          parameters:
+            # let the webhook body override the branch/ref to build
+            - src:
+                dependencyName: build-request
+                dataKey: body.revision
+                value: main
+              dest: spec.arguments.parameters.0.value

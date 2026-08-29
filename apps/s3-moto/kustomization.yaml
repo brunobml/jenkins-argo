@@ -7,6 +7,7 @@ resources:
   - manifests/provision-workflow.yaml
   - manifests/teardown-workflow.yaml
   - manifests/ci-build-template.yaml
+  - manifests/ci-events.yaml
   - manifests/image-updater.yaml
   - manifests/app.yaml
 
