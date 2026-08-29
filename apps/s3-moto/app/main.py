@@ -29,9 +29,9 @@ s3 = boto3.client(
 )
 
 BANNER = r"""
-   Argo CD said "deploy" and so it was shipped.
+   push -> kaniko builds -> Image Updater rolls it out. no hands.
           .--.      _______
-         |o_o |    | bucket|      s3-moto guestbook
+         |o_o |    | bucket|      s3-moto guestbook  [CI/CD edition]
          |:_/ |    |  ___  |
         //   \ \   | |   | |    "it's not the cloud, it's just
        (|     | )  | |___| |     someone else's laptop"
