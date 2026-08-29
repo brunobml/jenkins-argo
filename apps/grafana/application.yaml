@@ -413,17 +413,43 @@ spec:
                   "templating": {
                     "list": [
                       {
-                        "name": "workflow",
-                        "label": "Workflow pod",
+                        "name": "template",
+                        "label": "Workflow template",
                         "type": "query",
                         "datasource": { "type": "loki", "uid": "loki" },
-                        "definition": "label_values({cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\"}, pod)",
-                        "query": { "label": "pod", "stream": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\"}", "type": 1 },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow_template=~\".+\"}, workflow_template)",
+                        "query": { "label": "workflow_template", "stream": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow_template=~\".+\"}", "type": 1 },
+                        "includeAll": true,
+                        "allValue": ".+",
+                        "multi": false,
+                        "refresh": 2,
+                        "sort": 1,
+                        "current": { "text": "All", "value": "$__all" }
+                      },
+                      {
+                        "name": "workflow",
+                        "label": "Workflow",
+                        "type": "query",
+                        "datasource": { "type": "loki", "uid": "loki" },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=~\".+\", workflow_template=~\"$template\"}, workflow)",
+                        "query": { "label": "workflow", "stream": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=~\".+\", workflow_template=~\"$template\"}", "type": 1 },
+                        "includeAll": false,
+                        "multi": false,
+                        "refresh": 2,
+                        "sort": 1
+                      },
+                      {
+                        "name": "step",
+                        "label": "Step (pod)",
+                        "type": "query",
+                        "datasource": { "type": "loki", "uid": "loki" },
+                        "definition": "label_values({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\"}, pod)",
+                        "query": { "label": "pod", "stream": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\"}", "type": 1 },
                         "includeAll": true,
                         "allValue": ".+",
                         "multi": true,
                         "refresh": 2,
-                        "sort": 2,
+                        "sort": 1,
                         "current": { "text": "All", "value": "$__all" }
                       },
                       {
@@ -436,14 +462,33 @@ spec:
                   },
                   "panels": [
                     {
-                      "type": "timeseries",
-                      "title": "Log volume by workflow pod",
+                      "type": "table",
+                      "title": "Recent workflows in range (pick one above)",
                       "datasource": { "type": "loki", "uid": "loki" },
                       "gridPos": { "h": 7, "w": 24, "x": 0, "y": 0 },
+                      "options": { "showHeader": true },
+                      "targets": [
+                        {
+                          "expr": "sum by (workflow, workflow_template) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=~\".+\", workflow_template=~\"$template\"}[$__range]))",
+                          "instant": true,
+                          "format": "table",
+                          "refId": "A"
+                        }
+                      ],
+                      "transformations": [
+                        { "id": "organize", "options": { "renameByName": { "workflow": "Workflow", "workflow_template": "Template", "Value": "Log lines" } } },
+                        { "id": "sortBy", "options": { "fields": "", "sort": [ { "field": "Log lines", "desc": true } ] } }
+                      ]
+                    },
+                    {
+                      "type": "timeseries",
+                      "title": "$workflow - log volume by step",
+                      "datasource": { "type": "loki", "uid": "loki" },
+                      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 7 },
                       "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true } },
                       "targets": [
                         {
-                          "expr": "sum by (pod) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\", pod=~\"$workflow\"} |~ \"(?i)$search\" [$__auto]))",
+                          "expr": "sum by (pod) (count_over_time({cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", pod=~\"$step\"} |~ \"(?i)$search\" [$__auto]))",
                           "legendFormat": "{{pod}}",
                           "refId": "A"
                         }
@@ -451,20 +496,22 @@ spec:
                     },
                     {
                       "type": "logs",
-                      "title": "Step logs (from pods, then MinIO once GC'd)",
+                      "title": "$workflow - step logs",
                       "datasource": { "type": "loki", "uid": "loki" },
-                      "gridPos": { "h": 23, "w": 24, "x": 0, "y": 7 },
+                      "gridPos": { "h": 23, "w": 24, "x": 0, "y": 14 },
                       "options": {
                         "showTime": true,
+                        "showLabels": true,
+                        "showCommonLabels": false,
                         "wrapLogMessage": true,
                         "prettifyLogMessage": false,
                         "enableLogDetails": true,
                         "dedupStrategy": "none",
-                        "sortOrder": "Descending"
+                        "sortOrder": "Ascending"
                       },
                       "targets": [
                         {
-                          "expr": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", container=\"main\", pod=~\"$workflow\"} |~ \"(?i)$search\"",
+                          "expr": "{cluster=\"kind-lab\", namespace=\"argo-workflows\", workflow=\"$workflow\", pod=~\"$step\"} |~ \"(?i)$search\"",
                           "refId": "A"
                         }
                       ]
@@ -477,7 +524,7 @@ spec:
                   "timezone": "browser",
                   "title": "Argo Workflows Logs",
                   "uid": "argo-workflows-logs",
-                  "version": 1
+                  "version": 2
                 }
 
         deploymentStrategy:

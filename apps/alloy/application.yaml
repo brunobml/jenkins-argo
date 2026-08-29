@@ -56,6 +56,18 @@ spec:
                   separator    = "/"
                   target_label = "job"
                 }
+
+                // Argo Workflows: keep the workflow / template as Loki labels so
+                // a dashboard can show one workflow's logs at a time.
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_label_workflows_argoproj_io_workflow"]
+                  target_label  = "workflow"
+                }
+
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_label_workflows_argoproj_io_workflow_template"]
+                  target_label  = "workflow_template"
+                }
               }
 
               loki.source.kubernetes "pod_logs" {
