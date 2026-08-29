@@ -24,6 +24,10 @@ provider "aws" {
 resource "aws_s3_bucket" "app" {
   bucket = var.bucket_name
 
+  # The s3-consumer app writes objects Terraform does not track, so let
+  # `terraform destroy` empty the bucket before removing it.
+  force_destroy = true
+
   tags = {
     Environment = "local"
     ManagedBy   = "terraform"
