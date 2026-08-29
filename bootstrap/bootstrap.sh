@@ -163,14 +163,14 @@ $(printf '\033[1;32m==> Bootstrap complete\033[0m')
 
   Application URLs
   ---------------------------------------------------------------------
-  Argo CD             http://${ARGOCD_ADDR}
-  Keycloak            http://keycloak.localhost
-  Grafana            http://grafana.localhost
-  Jenkins            http://jenkins.localhost
-  Argo Workflows     http://workflows.localhost
-  Argo Rollouts      http://rollouts.localhost
-  Prometheus         http://prometheus.localhost
-  Alertmanager       http://alertmanager.localhost
+  Argo CD          http://${ARGOCD_ADDR}
+  Keycloak         http://keycloak.localhost
+  Grafana          http://grafana.localhost
+  Jenkins          http://jenkins.localhost
+  Argo Workflows   http://workflows.localhost
+  Argo Rollouts    http://rollouts.localhost
+  Prometheus       http://prometheus.localhost
+  Alertmanager     http://alertmanager.localhost
   ---------------------------------------------------------------------
 
   Argo CD admin (local fallback) : admin / ${ARGOCD_PASSWORD}
