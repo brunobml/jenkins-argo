@@ -1,0 +1,31 @@
+# Lets the Argo Workflows service account (in argo-workflows) write the
+# s3-moto-infra Secret into the s3-moto namespace - that Secret is how the
+# provisioning workflow hands terraform outputs to the app.
+# Synced in wave 0 so it exists before the wave-1 provisioning workflow runs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: s3-moto-infra-writer
+  namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, create, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: s3-moto-infra-writer
+  namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: s3-moto-infra-writer
+subjects:
+  - kind: ServiceAccount
+    name: argo-workflow
+    namespace: argo-workflows

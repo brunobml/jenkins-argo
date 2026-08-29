@@ -1,79 +1,113 @@
-# The "app that runs on AWS": it reads its release artifact (index.html) from
-# the S3 bucket every 15s and prints it. Watch its logs after editing
-# artifact.yaml + pushing - the new content shows up once Argo CD syncs and the
-# PostSync job re-uploads.
+# The s3-moto guestbook: a real HTTP service whose datastore is the S3 bucket.
 #
-# Only lab-specific bits: AWS_ENDPOINT_URL (point the SDK at Moto) + dummy creds.
-# For real AWS: drop both, give the ServiceAccount an IAM role (IRSA/Pod Identity).
+# It reads its config from the s3-moto-infra Secret, which the provisioning
+# workflow writes from `terraform output`. No Secret -> the Deployment cannot
+# start -> the Argo CD app is not Healthy. That is the real infra->app dependency.
+#
+# Phase A runs the code from a ConfigMap (kustomize configMapGenerator over
+# ../app/main.py). Phase B replaces the ConfigMap with a container image built
+# by the CI workflow.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: s3-consumer
+  name: s3-moto-app
   namespace: s3-moto
   annotations:
     argocd.argoproj.io/sync-wave: "2"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: s3-consumer-config
-  namespace: s3-moto
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-data:
-  AWS_DEFAULT_REGION: us-east-1
-  # Moto on the k3d host. Remove this key to talk to real AWS S3.
-  AWS_ENDPOINT_URL: http://host.k3d.internal:5000
-  BUCKET_NAME: s3-consumer-demo
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: s3-consumer
+  name: s3-moto-app
   namespace: s3-moto
   labels:
-    app: s3-consumer
+    app: s3-moto-app
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: s3-consumer
+      app: s3-moto-app
   template:
     metadata:
       labels:
-        app: s3-consumer
+        app: s3-moto-app
     spec:
-      serviceAccountName: s3-consumer
+      serviceAccountName: s3-moto-app
       containers:
         - name: app
-          image: amazon/aws-cli:2.17.20
+          image: python:3.12-slim
           command: [sh, -ceu]
           args:
             - |
-              echo "s3-consumer: reading s3://$BUCKET_NAME/index.html every 15s"
-              while true; do
-                ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                if aws s3 cp "s3://$BUCKET_NAME/index.html" - 2>/tmp/err; then
-                  echo "--- [$ts] current release ---"
-                else
-                  echo "[$ts] artifact not available yet - waiting for Argo CD to deploy it"
-                  sed 's/^/    /' /tmp/err
-                fi
-                sleep 15
-              done
+              pip install --quiet --root-user-action=ignore boto3
+              exec python /app/main.py
+          ports:
+            - name: http
+              containerPort: 8080
           envFrom:
-            - configMapRef:
-                name: s3-consumer-config
+            # bucket name + endpoint + region, written by the provisioning workflow
+            - secretRef:
+                name: s3-moto-infra
           env:
             - name: AWS_ACCESS_KEY_ID
               value: "test"
             - name: AWS_SECRET_ACCESS_KEY
               value: "test"
+          volumeMounts:
+            - name: code
+              mountPath: /app
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 30
+            periodSeconds: 3
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
           resources:
             requests:
               cpu: 25m
-              memory: 64Mi
+              memory: 96Mi
             limits:
-              memory: 128Mi
+              memory: 192Mi
+      volumes:
+        - name: code
+          configMap:
+            name: s3-moto-app-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3-moto-app
+  namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    app: s3-moto-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: s3-moto-app
+  namespace: s3-moto
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: s3-moto.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: s3-moto-app
+                port:
+                  number: 80

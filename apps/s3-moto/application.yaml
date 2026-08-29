@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/brunobml/jenkins-argo.git
     targetRevision: main
-    path: apps/s3-moto/manifests
+    path: apps/s3-moto
 
   destination:
     server: https://kubernetes.default.svc

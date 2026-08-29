@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - manifests/rbac.yaml
+  - manifests/workflowtemplate.yaml
+  - manifests/provision-workflow.yaml
+  - manifests/teardown-workflow.yaml
+  - manifests/app.yaml
+
+# Phase A: ship the app code as a ConfigMap built from the real source file.
+# The name gets a content hash, so editing app/main.py rolls the Deployment.
+# (resources keep the namespaces declared in their own manifests - the
+# WorkflowTemplate/Workflows must stay in argo-workflows.)
+configMapGenerator:
+  - name: s3-moto-app-code
+    namespace: s3-moto
+    files:
+      - app/main.py
