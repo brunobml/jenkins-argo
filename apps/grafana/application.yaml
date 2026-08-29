@@ -86,6 +86,11 @@ spec:
 
         dashboards:
           default:
+            # Official Argo Workflows metrics dashboard, kept as its own file.
+            argo-workflows-overview:
+              url: https://raw.githubusercontent.com/brunobml/jenkins-argo/main/apps/grafana/argo-workflow-dashboard.json
+              datasource: Prometheus
+
             kubernetes-overview:
               json: |
                 {

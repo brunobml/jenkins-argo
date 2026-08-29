@@ -43,6 +43,13 @@ spec:
             workflowNamespaces:
               - argo-workflows
 
+            # Let the Prometheus kubernetes-pods job scrape the controller metrics
+            # (port 9090) - feeds the "Argo Workflows / Overview" Grafana dashboard.
+            podAnnotations:
+              prometheus.io/scrape: "true"
+              prometheus.io/port: "9090"
+              prometheus.io/path: /metrics
+
             # Keep step pods 30 min after a workflow finishes (live debugging),
             # keep the Workflow object 7 days (UI + archived-log links).
             workflowDefaults:
