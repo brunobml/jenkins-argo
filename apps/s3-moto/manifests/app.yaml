@@ -48,8 +48,8 @@ spec:
               echo "s3-consumer: writing a heartbeat to s3://$BUCKET_NAME every 30s"
               while true; do
                 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                if printf '%s %s\n' "$ts" "$(hostname)" \
-                     | aws s3 cp - "s3://$BUCKET_NAME/heartbeat/$(hostname).txt" 2>/tmp/err; then
+                if printf '%s %s\n' "$ts" "$POD_NAME" \
+                     | aws s3 cp - "s3://$BUCKET_NAME/heartbeat/$POD_NAME.txt" 2>/tmp/err; then
                   echo "[$ts] wrote heartbeat; bucket now contains:"
                   aws s3 ls "s3://$BUCKET_NAME/" --recursive
                 else
@@ -62,6 +62,10 @@ spec:
             - configMapRef:
                 name: s3-consumer-config
           env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: AWS_ACCESS_KEY_ID
               value: "test"
             - name: AWS_SECRET_ACCESS_KEY
