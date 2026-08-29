@@ -1,0 +1,87 @@
+# CI: build the s3-moto-app image with kaniko and push it to the in-cluster
+# registry. Triggered by the CI Sensor (ci-sensor.yaml) on a webhook, or by hand:
+#   argo submit -n argo-workflows --from workflowtemplate/s3-moto-build --watch
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: s3-moto-build
+  namespace: argo-workflows
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  podGC:
+    strategy: OnWorkflowSuccess
+
+  arguments:
+    parameters:
+      - name: repo
+        value: https://github.com/brunobml/jenkins-argo.git
+      - name: revision
+        value: main
+      - name: image
+        value: k3d-registry:5000/s3-moto-app
+      - name: context
+        value: apps/s3-moto/app
+
+  volumeClaimTemplates:
+    - metadata:
+        name: work
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
+
+  templates:
+    - name: main
+      steps:
+        - - name: checkout
+            template: checkout
+        - - name: build
+            template: kaniko
+            arguments:
+              parameters:
+                - name: tag
+                  value: "{{steps.checkout.outputs.parameters.sha}}"
+
+    - name: checkout
+      container:
+        image: alpine/git:2.45.2
+        command: [sh, -ceu]
+        args:
+          - |
+            rm -rf /work/src
+            git clone --depth 1 --branch "{{workflow.parameters.revision}}" \
+              "{{workflow.parameters.repo}}" /work/src
+            git -C /work/src rev-parse --short HEAD | tr -d '\n' | tee /tmp/sha
+        volumeMounts:
+          - name: work
+            mountPath: /work
+      outputs:
+        parameters:
+          - name: sha
+            valueFrom:
+              path: /tmp/sha
+
+    - name: kaniko
+      inputs:
+        parameters:
+          - name: tag
+      container:
+        image: gcr.io/kaniko-project/executor:v1.23.2
+        args:
+          - --context=dir:///work/src/{{workflow.parameters.context}}
+          - --dockerfile=Dockerfile
+          - --destination={{workflow.parameters.image}}:{{inputs.parameters.tag}}
+          - --destination={{workflow.parameters.image}}:latest
+          - --insecure
+          - --skip-tls-verify
+          - --cache=false
+        volumeMounts:
+          - name: work
+            mountPath: /work
+      outputs:
+        parameters:
+          - name: image
+            value: "{{workflow.parameters.image}}:{{inputs.parameters.tag}}"

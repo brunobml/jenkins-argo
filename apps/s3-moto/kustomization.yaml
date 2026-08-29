@@ -6,6 +6,7 @@ resources:
   - manifests/workflowtemplate.yaml
   - manifests/provision-workflow.yaml
   - manifests/teardown-workflow.yaml
+  - manifests/ci-build-template.yaml
   - manifests/app.yaml
 
 # Phase A: ship the app code as a ConfigMap built from the real source file.
