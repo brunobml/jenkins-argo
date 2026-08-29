@@ -31,7 +31,7 @@ s3 = boto3.client(
 BANNER = r"""
    push -> kaniko builds -> Image Updater rolls it out. no hands.
           .--.      _______
-         |o_o |    | bucket|      s3-moto guestbook  [CI/CD edition]
+         |o_o |    | bucket|      s3-moto guestbook  [whatever edition]
          |:_/ |    |  ___  |
         //   \ \   | |   | |    "it's not the cloud, it's just
        (|     | )  | |___| |     someone else's laptop"
