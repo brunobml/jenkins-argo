@@ -28,6 +28,8 @@ ARGOCD_MANIFEST="${ARGOCD_MANIFEST:-https://raw.githubusercontent.com/argoproj/a
 
 SKIP_CLUSTER="${SKIP_CLUSTER:-false}"
 SKIP_ARGOCD_LOGIN="${SKIP_ARGOCD_LOGIN:-false}"
+SKIP_WAIT="${SKIP_WAIT:-false}"          # skip waiting for all apps to be healthy
+WAIT_TIMEOUT="${WAIT_TIMEOUT:-1200}"     # seconds to wait for apps to converge
 
 DESTROY="${DESTROY:-false}"
 [[ "${1:-}" == "--destroy" || "${1:-}" == "-d" ]] && DESTROY=true
@@ -151,10 +153,53 @@ fi
 log "Applying the root Application (platform-apps)"
 kubectl apply -f "${SCRIPT_DIR}/root-application.yaml"
 
-# --- 8. Summary --------------------------------------------------------
-if command -v argocd >/dev/null 2>&1 && [[ "${SKIP_ARGOCD_LOGIN}" != "true" ]]; then
-  log "Argo CD applications"
+# --- 8. Wait for every application to be Synced + Healthy -------------------
+apps_table() {
+  # NAME  SYNC  HEALTH, one row per Argo CD Application
+  kubectl -n argocd get applications \
+    -o 'custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status' \
+    --no-headers 2>/dev/null
+}
+
+if [[ "${SKIP_WAIT}" == "true" ]]; then
+  warn "Skipping the readiness wait (SKIP_WAIT=true)"
+else
+  log "Waiting for all applications to become Synced + Healthy (timeout ${WAIT_TIMEOUT}s)"
+  deadline=$(( $(date +%s) + WAIT_TIMEOUT ))
+  last=""
+  while :; do
+    table="$(apps_table)"
+    total=$(printf '%s\n' "${table}" | grep -c . || true)
+    ready=$(printf '%s\n' "${table}" | awk '$2=="Synced" && $3=="Healthy"' | grep -c . || true)
+    pending=$(printf '%s\n' "${table}" | awk '$2!="Synced" || $3!="Healthy"')
+
+    # platform-apps + its children: expect a handful of apps, not just the root
+    if [[ "${total}" -ge 2 && "${ready}" -eq "${total}" ]]; then
+      log "All ${total} applications are Synced + Healthy"
+      break
+    fi
+
+    if [[ $(date +%s) -ge ${deadline} ]]; then
+      warn "Timed out after ${WAIT_TIMEOUT}s. Still not ready:"
+      printf '%s\n' "${pending}" | sed 's/^/    /'
+      break
+    fi
+
+    if [[ "${pending}" != "${last}" ]]; then
+      printf '  still waiting on:\n'
+      printf '%s\n' "${pending}" | sed 's/^/    /'
+      last="${pending}"
+    fi
+    sleep 10
+  done
+fi
+
+# --- 9. Summary --------------------------------------------------------
+log "Argo CD applications"
+if command -v argocd >/dev/null 2>&1 && [[ "${SKIP_ARGOCD_LOGIN}" != "true" ]] && argocd account get-user-info --grpc-web >/dev/null 2>&1; then
   argocd app list --grpc-web || true
+else
+  apps_table
 fi
 
 cat <<EOF
@@ -183,9 +228,6 @@ $(printf '\033[1;32m==> Bootstrap complete\033[0m')
 
   Add '127.0.0.1  argocd.localhost keycloak.localhost grafana.localhost jenkins.localhost workflows.localhost rollouts.localhost prometheus.localhost alertmanager.localhost' to /etc/hosts if *.localhost does not resolve.
 
-  SSO for Argo CD, Grafana, Jenkins and Argo Workflows becomes usable once the
-  'keycloak' Argo CD application reports Synced/Healthy:
-
-    kubectl -n argocd get applications
-    argocd app wait keycloak --grpc-web --timeout 600
+  Each URL is ready once its application shows Synced + Healthy above.
+  Re-check any time with:  kubectl -n argocd get applications
 EOF
