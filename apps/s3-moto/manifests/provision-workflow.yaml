@@ -1,12 +1,17 @@
-# PreSync hook (wave 0): runs the infra pipeline on every Argo CD sync.
+# PreSync hook (wave 0): runs the infra pipeline on EVERY Argo CD sync.
 #
-# BeforeHookCreation => Argo CD deletes the old Workflow and creates a fresh one
-# each sync (so it never runs a stale template), and BLOCKS the rest of the sync
-# until it reports Succeeded - that is what guarantees "bucket provisioned +
-# s3-moto-infra Secret written" before the app Deployment is applied.
+# hook-delete-policy:
+#   BeforeHookCreation - delete the previous Workflow before creating a new one
+#   HookSucceeded      - delete it again once it succeeds
+# Net effect: no Workflow object lingers, so Argo CD always creates + runs a
+# fresh one each sync (even when nothing in Git changed - e.g. after someone
+# deletes the s3-moto namespace). Argo CD BLOCKS the rest of the sync until it
+# reports Succeeded, guaranteeing "bucket provisioned + s3-moto-infra Secret
+# written" before the app Deployment is applied.
 #
 # terraform apply is idempotent (import -> plan -> apply), so re-running it on
-# every sync just reconciles the infra.
+# every sync just reconciles the infra. Cost: ~90s per sync, mostly the AWS
+# provider download in `terraform init`.
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -14,7 +19,7 @@ metadata:
   namespace: argo-workflows
   annotations:
     argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "0"
 spec:
   workflowTemplateRef:
