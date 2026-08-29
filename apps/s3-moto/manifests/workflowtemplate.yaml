@@ -64,9 +64,6 @@ spec:
         - - name: verify
             template: verify
             when: "{{workflow.parameters.mode}} == deploy"
-        - - name: publish-config
-            template: publish-config
-            when: "{{workflow.parameters.mode}} == deploy"
         - - name: destroy
             template: terraform
             when: "{{workflow.parameters.mode}} == teardown"
@@ -93,7 +90,7 @@ spec:
           - name: workdir
             mountPath: /work
 
-    # 2/4. terraform init + (apply | destroy) in apps/s3-moto/terraform.
+    # 2. terraform init + (apply | destroy) in apps/s3-moto/terraform.
     - name: terraform
       inputs:
         parameters:
@@ -114,8 +111,6 @@ spec:
                 terraform apply -input=false -auto-approve -no-color
                 echo "--- outputs ---"
                 terraform output -no-color
-                # hand the real outputs to the next step via the shared volume
-                terraform output -raw bucket_name > /work/tf.bucket
                 ;;
               destroy)
                 terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
@@ -164,22 +159,3 @@ spec:
             value: "us-east-1"
           - name: AWS_ENDPOINT_URL
             value: "{{workflow.parameters.s3_endpoint}}"
-
-    # 4. Publish the provisioned infra's coordinates as a Secret the app consumes.
-    #    This is the "infra output -> app config" handoff.
-    - name: publish-config
-      container:
-        image: alpine/k8s:1.31.1
-        command: [sh, -ceu]
-        args:
-          - |
-            BUCKET="$(cat /work/tf.bucket)"
-            echo "publishing s3-moto-infra Secret (bucket=$BUCKET)"
-            kubectl create secret generic s3-moto-infra -n s3-moto \
-              --from-literal=BUCKET_NAME="$BUCKET" \
-              --from-literal=AWS_ENDPOINT_URL="{{workflow.parameters.s3_endpoint}}" \
-              --from-literal=AWS_DEFAULT_REGION=us-east-1 \
-              --dry-run=client -o yaml | kubectl apply -f -
-        volumeMounts:
-          - name: workdir
-            mountPath: /work

@@ -1,17 +1,30 @@
 # The s3-moto guestbook: a real HTTP service whose datastore is the S3 bucket.
 #
-# It reads its config from the s3-moto-infra Secret, which the provisioning
-# workflow writes from `terraform output`. No Secret -> the Deployment cannot
-# start -> the Argo CD app is not Healthy. That is the real infra->app dependency.
+# Config (bucket name, endpoint) is a plain Git-managed ConfigMap - Argo CD
+# recreates it directly, so `kubectl delete namespace s3-moto` heals with no
+# manual steps. The provisioning workflow (PreSync) makes sure the bucket
+# exists; if it doesn't, the app serves a 503 "infra not ready" page rather
+# than crash-looping.
 #
 # The image is built by the s3-moto-build workflow (kaniko) and kept current by
-# Argo CD Image Updater (see application.yaml annotations). The tag here is just
-# the seed - Image Updater rewrites it via the kustomize images override.
+# Argo CD Image Updater (see image-updater.yaml). The tag here is just the seed.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: s3-moto-app
   namespace: s3-moto
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-moto-config
+  namespace: s3-moto
+data:
+  # must match terraform/variables.tf (var.bucket_name) and the workflow's
+  # bucket_name parameter
+  BUCKET_NAME: s3-consumer-demo
+  AWS_ENDPOINT_URL: http://host.k3d.internal:5000
+  AWS_DEFAULT_REGION: us-east-1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38,9 +51,8 @@ spec:
             - name: http
               containerPort: 8080
           envFrom:
-            # bucket name + endpoint + region, written by the provisioning workflow
-            - secretRef:
-                name: s3-moto-infra
+            - configMapRef:
+                name: s3-moto-config
           env:
             - name: AWS_ACCESS_KEY_ID
               value: "test"
