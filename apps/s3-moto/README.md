@@ -94,9 +94,11 @@ AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 
 ## Notes
 
-- **Ephemeral.** Moto keeps state until its container restarts; the workflow's
-  Terraform state lives on a per-run volume that is deleted with the workflow.
-  Re-running `apply` is safe — `us-east-1` bucket creation is idempotent in Moto.
+- **Ephemeral state.** Moto keeps resources until its container restarts; the
+  workflow's Terraform state lives on a per-run volume and is thrown away with
+  the workflow. So each run starts with an empty state file — the `apply` step
+  runs `terraform import` first to adopt a bucket/object that already exists,
+  which keeps re-runs idempotent and lets `cleanup=true` destroy cleanly.
 - **Reset Moto** (on the host): `docker compose -f ~/repos/moto/compose.yaml restart`.
 - The workflow needs egress to `github.com` and `registry.terraform.io`.
 - Terraform's `provider "aws"` block (`terraform/main.tf`) toggles Moto vs AWS

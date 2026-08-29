@@ -95,12 +95,18 @@ spec:
             terraform init -input=false -no-color
             case "{{inputs.parameters.action}}" in
               apply)
+                # State is per-run (ephemeral volume), so adopt anything that
+                # already exists in Moto before planning - keeps re-runs idempotent.
+                terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
+                terraform import -input=false -no-color aws_s3_object.readme "$TF_VAR_bucket_name/README.txt" 2>/dev/null || true
                 terraform plan  -input=false -no-color
                 terraform apply -input=false -auto-approve -no-color
                 echo "--- outputs ---"
                 terraform output -no-color
                 ;;
               destroy)
+                terraform import -input=false -no-color aws_s3_bucket.app "$TF_VAR_bucket_name" 2>/dev/null || true
+                terraform import -input=false -no-color aws_s3_object.readme "$TF_VAR_bucket_name/README.txt" 2>/dev/null || true
                 terraform destroy -input=false -auto-approve -no-color
                 ;;
             esac
