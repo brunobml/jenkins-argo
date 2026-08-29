@@ -15,4 +15,16 @@ data:
     <!doctype html>
     <title>s3-moto</title>
     <h1>Hello from s3-moto</h1>
-    <p>Release v3 - full chain re-test.</p>
+    <p>Release v4 - now with 100% more ASCII.</p>
+    <pre>
+       Argo CD said "deploy" and so it was shipped.
+
+              .--.      _______
+             |o_o |    | bucket|         ___
+             |:_/ |    |  ___  |        /   \   "it's not the cloud,
+            //   \ \   | |   | |       | mot |    it's just someone
+           (|     | )  | |___| |        \___/     else's laptop"
+          /'\_   _/`\  |_______|          |
+          \___)=(___/   s3://prod         '--- moto @ localhost:5000
+    </pre>
+    <p><em>terraform apply -&gt; git push -&gt; profit</em> &#128640;</p>
