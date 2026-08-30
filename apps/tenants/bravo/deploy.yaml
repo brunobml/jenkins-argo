@@ -1,3 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-bravo
+---
 # tenant-bravo - a stand-alone app the "tenants" ApplicationSet turns into an
 # Argo CD Application. It knows nothing about ApplicationSet; it's just manifests.
 apiVersion: apps/v1

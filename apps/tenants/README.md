@@ -40,8 +40,13 @@ git add apps/tenants/delta && git commit -m "tenant delta" && git push
 # within ~3 min: a "tenant-delta" Application appears, http://delta.tenants.localhost works
 
 git rm -r apps/tenants/delta && git commit -m "drop delta" && git push
-# the Application AND its namespace are pruned (prune: true + CreateNamespace)
+# the Application is pruned -> its Namespace object -> everything in it
 ```
+
+> The generator polls through Argo CD's repo-server cache. A brand-new commit can
+> take a few minutes to show up; `argocd app get platform-apps --hard-refresh`
+> (or a repo-server restart) forces it. A real setup wires a Git webhook for
+> this - which needs inbound connectivity.
 
 ## Notes
 

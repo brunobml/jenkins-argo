@@ -43,5 +43,5 @@ spec:
         automated:
           prune: true
           selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
+        # each tenant dir ships its own Namespace object, so deleting the dir
+        # prunes the Application -> the Namespace -> everything in it.
