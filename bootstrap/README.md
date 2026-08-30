@@ -3,6 +3,23 @@
 `./bootstrap/bootstrap.sh` runs every step below end to end (and `--destroy`
 tears the cluster down). The manual steps are kept here for reference.
 
+## After a host / WSL reboot
+
+Docker restarts the k3d containers, but k3d does **not** re-inject
+`host.k3d.internal` into CoreDNS (it only does that at cluster-create). Our
+`coredns-custom` override now rewrites `host.k3d.internal -> host.docker.internal`
+so this survives, but if things still look broken:
+
+```bash
+kubectl apply -f bootstrap/coredns-localhost-rewrite.yaml
+kubectl -n kube-system rollout restart deploy/coredns
+
+docker compose -f ~/repos/moto/compose.yaml up -d   # Moto (restart:unless-stopped now)
+
+argocd app sync s3-moto        # re-runs terraform -> recreates the bucket
+                               # (Moto is in-memory: guestbook entries are gone)
+```
+
 > Ports are mapped 1:1 (`80:80`, `443:443`) so the Keycloak OIDC issuer
 > `http://keycloak.localhost` resolves to the same URL from the browser and from
 > inside the cluster. See [SSO with Keycloak](#sso-with-keycloak) below.
