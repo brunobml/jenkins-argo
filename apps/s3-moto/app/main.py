@@ -40,10 +40,10 @@ BANNER = r"""
 
 # Architecture of the whole s3-moto solution (rendered with mermaid.js).
 ARCH = """flowchart TB
-  dev(["git commit &amp; push"]) --> gh[("GitHub repo")]
+  dev(["git commit and push"]) --> gh[("GitHub repo")]
 
-  subgraph AWF["Argo Workflows &middot; ns argo-workflows"]
-    poll["s3-moto-poll<br/>CronWorkflow &middot; every 2 min"]
+  subgraph AWF["Argo Workflows (ns argo-workflows)"]
+    poll["s3-moto-poll<br/>CronWorkflow, every 2 min"]
     wh["s3-moto-ci<br/>Argo Events webhook"]
     build["s3-moto-build<br/>git checkout + kaniko"]
     prov["s3-moto-provision<br/>terraform apply"]
@@ -52,41 +52,41 @@ ARCH = """flowchart TB
     wh --> build
   end
 
-  subgraph ACD["Argo CD &middot; ns argocd"]
+  subgraph ACD["Argo CD (ns argocd)"]
     root["platform-apps<br/>app-of-apps"] --> sapp["s3-moto<br/>Application"]
     iu["Image Updater<br/>ImageUpdater CR"]
   end
 
-  subgraph RUN["Runtime &middot; ns s3-moto"]
+  subgraph RUN["Runtime (ns s3-moto)"]
     ing["Ingress<br/>s3-moto.localhost"] --> gb["s3-moto-app<br/>guestbook Deployment"]
     cfg["s3-moto-config<br/>ConfigMap"] --> gb
   end
 
-  reg[("k3d-registry:5000<br/>s3-moto-app tag = git sha")]
-  moto[("Moto S3 &middot; on the host<br/>host.k3d.internal:5000<br/>bucket s3-consumer-demo")]
+  reg[("k3d-registry:5000<br/>s3-moto-app, tag = git sha")]
+  moto[("Moto S3, on the host<br/>host.k3d.internal:5000<br/>bucket s3-consumer-demo")]
 
-  gh -. "new sha?" .-> poll
+  gh -.->|"new sha?"| poll
   gh --> root
-  build -- "push image" --> reg
-  reg -. "newest tag" .-> iu
-  iu -- "set kustomize image" --> sapp
-  sapp -- "PreSync hook" --> prov
-  sapp -- "PreDelete hook" --> teardown
+  build -->|"push image"| reg
+  reg -.->|"newest tag"| iu
+  iu -->|"set kustomize image"| sapp
+  sapp -->|"PreSync hook"| prov
+  sapp -->|"PreDelete hook"| teardown
   sapp --> gb
   sapp --> cfg
-  prov -- "create bucket" --> moto
-  gb <-->|"put / list / get entries/*.txt"| moto
+  prov -->|"create bucket"| moto
+  gb <-->|"read and write entries"| moto
 
   subgraph OBS["Observability"]
-    alloy["Alloy<br/>tails /var/log/pods"] --> loki[("Loki")]
+    alloy["Alloy<br/>tails var log pods"] --> loki[("Loki")]
     loki --> graf["Grafana"]
     prom[("Prometheus")] --> graf
     minio[("MinIO<br/>archived step logs")]
   end
-  build -. logs .-> alloy
-  prov -. logs .-> alloy
-  gb -. logs .-> alloy
-  build -. artifacts .-> minio
+  build -.->|"logs"| alloy
+  prov -.->|"logs"| alloy
+  gb -.->|"logs"| alloy
+  build -.->|"artifacts"| minio
 
   classDef store fill:#eef,stroke:#88a;
   class reg,moto,loki,prom,minio store;
