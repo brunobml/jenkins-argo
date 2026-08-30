@@ -1,0 +1,6 @@
+# Defaults - every real value is overridden per region by the ApplicationSet
+# list generator (see apps/regions/applicationset.yaml).
+region: dev
+city: "somewhere"
+replicas: 1
+image: hashicorp/http-echo:0.2.3

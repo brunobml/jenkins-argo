@@ -1,0 +1,5 @@
+apiVersion: v2
+name: regions-echo
+description: One http-echo per region; values come from the ApplicationSet list generator
+version: 0.1.0
+appVersion: "0.2.3"

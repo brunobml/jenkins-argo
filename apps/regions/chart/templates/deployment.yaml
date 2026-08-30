@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  labels:
+    app: echo
+    region: {{ .Values.region }}
+spec:
+  replicas: {{ .Values.replicas | int }}
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+        region: {{ .Values.region }}
+    spec:
+      containers:
+        - name: echo
+          image: {{ .Values.image }}
+          args:
+            - "-text=region {{ .Values.region | upper }} :: {{ .Values.city }} :: {{ .Values.replicas }} replica(s)"
+          ports:
+            - containerPort: 5678
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 32Mi }

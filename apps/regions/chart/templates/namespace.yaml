@@ -1,0 +1,5 @@
+# The chart owns the namespace, so `git rm` of a list entry prunes it cleanly.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: region-{{ .Values.region }}

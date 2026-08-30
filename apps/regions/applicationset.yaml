@@ -1,0 +1,60 @@
+# ApplicationSet - LIST generator (the simplest one).
+#
+# No per-app directory (that was the tenants example). Instead the whole list of
+# instances is written inline here, and each element's keys become Go-template
+# values in the template below. One shared Helm chart (apps/regions/chart),
+# parameterised per element.
+#
+# Add an element + push -> a new "regions-<x>" Application. Remove one -> it (and
+# its namespace, which the chart owns) is pruned.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: regions
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - list:
+        elements:
+          - region: us
+            city: N. Virginia
+            replicas: "2"
+          - region: eu
+            city: Frankfurt
+            replicas: "1"
+          - region: apac
+            city: Singapore
+            replicas: "1"
+
+  template:
+    metadata:
+      name: "regions-{{ .region }}"
+      labels:
+        demo: regions
+        region: "{{ .region }}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        targetRevision: main
+        path: apps/regions/chart
+        helm:
+          releaseName: "regions-{{ .region }}"
+          # list values are always strings; the chart does `| int` where needed
+          parameters:
+            - name: region
+              value: "{{ .region }}"
+            - name: city
+              value: "{{ .city }}"
+            - name: replicas
+              value: "{{ .replicas }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "region-{{ .region }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
