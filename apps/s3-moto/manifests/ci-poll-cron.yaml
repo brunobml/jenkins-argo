@@ -11,7 +11,8 @@ metadata:
   name: s3-moto-poll
   namespace: argo-workflows
 spec:
-  schedule: "*/2 * * * *"
+  schedules:
+    - "*/2 * * * *"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 30
   successfulJobsHistoryLimit: 2
