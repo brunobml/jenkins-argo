@@ -1,11 +1,13 @@
-# Lets in-cluster clients (Argo CD, Grafana, Jenkins, Argo Workflows) resolve the
-# *.localhost ingress hostnames - notably keycloak.localhost - so the OIDC issuer
-# URL is identical from the browser and from inside the cluster.
+# Two in-cluster DNS fixes, both surviving a host reboot (unlike the records k3d
+# only injects at cluster-create time):
+#
+# 1. *.localhost ingress hostnames (keycloak.localhost, ...) -> the Traefik
+#    service, so the OIDC issuer URL is identical from browser and from in-cluster.
+# 2. host.k3d.internal -> host.docker.internal (which Docker Desktop always
+#    provides). k3d drops host.k3d.internal from CoreDNS after a machine reboot,
+#    which breaks anything reaching Moto on the host (s3-moto).
 #
 # k3s CoreDNS imports /etc/coredns/custom/*.override into its main server block.
-# Any *.localhost name is answered with a CNAME to the Traefik service, which
-# CoreDNS then resolves via the kubernetes plugin. Clients follow the CNAME, so
-# the response is accepted; Traefik routes to the right Ingress by Host header.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,3 +20,5 @@ data:
       answer "{{ .Name }} 60 IN CNAME traefik.kube-system.svc.cluster.local."
       fallthrough
     }
+  hostk3d.override: |
+    rewrite name exact host.k3d.internal host.docker.internal
