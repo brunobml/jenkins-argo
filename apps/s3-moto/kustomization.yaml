@@ -7,6 +7,7 @@ resources:
   - manifests/teardown-workflow.yaml
   - manifests/ci-build-template.yaml
   - manifests/ci-events.yaml
+  - manifests/ci-poll-cron.yaml
   - manifests/image-updater.yaml
   - manifests/app.yaml
 

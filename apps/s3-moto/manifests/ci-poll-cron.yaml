@@ -1,0 +1,90 @@
+# Poll-based CI for when GitHub can't reach the cluster (no inbound webhook).
+# Every 2 min: get the current sha of main, and if no image is tagged with it
+# yet, build one. Image Updater then rolls it out like any other build.
+#
+#   argo cron list -n argo-workflows
+#   argo cron suspend s3-moto-poll -n argo-workflows     # pause it
+#   argo cron resume  s3-moto-poll -n argo-workflows
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: s3-moto-poll
+  namespace: argo-workflows
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 30
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  workflowSpec:
+    serviceAccountName: argo-workflow
+    entrypoint: ci
+    # noop poll runs disappear after 10 min; keep failures a day
+    ttlStrategy:
+      secondsAfterSuccess: 600
+      secondsAfterFailure: 86400
+    templates:
+      - name: ci
+        steps:
+          - - name: check
+              template: check
+          - - name: build
+              template: build
+              when: "{{steps.check.outputs.parameters.build}} == yes"
+              arguments:
+                parameters:
+                  - name: sha
+                    value: "{{steps.check.outputs.parameters.sha}}"
+
+      # 1. current main sha vs what's already in the registry
+      - name: check
+        container:
+          image: alpine/git:2.45.2
+          command: [sh, -ceu]
+          args:
+            - |
+              SHA=$(git ls-remote https://github.com/brunobml/jenkins-argo.git refs/heads/main | head -1 | cut -f1)
+              SHORT=$(printf '%s' "$SHA" | cut -c1-7)
+              printf '%s' "$SHORT" > /tmp/sha
+              if wget -qO- http://k3d-registry:5000/v2/s3-moto-app/tags/list | grep -q "\"$SHORT\""; then
+                echo "image s3-moto-app:$SHORT already built - nothing to do"
+                printf no > /tmp/build
+              else
+                echo "new commit $SHORT on main - building"
+                printf yes > /tmp/build
+              fi
+        outputs:
+          parameters:
+            - name: sha
+              valueFrom: { path: /tmp/sha }
+            - name: build
+              valueFrom: { path: /tmp/build }
+
+      # 2. kaniko build of that sha (git checkout into an emptyDir, no PVC)
+      - name: build
+        inputs:
+          parameters:
+            - name: sha
+          artifacts:
+            - name: src
+              path: /work
+              git:
+                repo: https://github.com/brunobml/jenkins-argo.git
+                revision: "{{inputs.parameters.sha}}"
+                depth: 1
+        container:
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --context=dir:///work/apps/s3-moto/app
+            - --dockerfile=Dockerfile
+            - --destination=k3d-registry:5000/s3-moto-app:{{inputs.parameters.sha}}
+            - --destination=k3d-registry:5000/s3-moto-app:latest
+            - --insecure
+            - --skip-tls-verify
+            - --cache=false
+          volumeMounts:
+            - name: work
+              mountPath: /work
+        volumes:
+          - name: work
+            emptyDir: {}
