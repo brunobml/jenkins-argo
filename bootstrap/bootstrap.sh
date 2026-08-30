@@ -56,10 +56,14 @@ if [[ "${DESTROY}" == "true" ]]; then
   if k3d cluster list 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER_NAME}"; then
     log "Deleting k3d cluster '${CLUSTER_NAME}'"
     k3d cluster delete "${CLUSTER_NAME}"
-    log "Done"
   else
-    warn "k3d cluster '${CLUSTER_NAME}' does not exist - nothing to do"
+    warn "k3d cluster '${CLUSTER_NAME}' does not exist"
   fi
+  if k3d registry list 2>/dev/null | awk '{print $1}' | grep -qx "k3d-${REGISTRY_NAME#k3d-}"; then
+    log "Deleting registry '${REGISTRY_NAME}'"
+    k3d registry delete "${REGISTRY_NAME}" || true
+  fi
+  log "Done"
   exit 0
 fi
 
@@ -73,6 +77,12 @@ if [[ "${SKIP_CLUSTER}" == "true" ]]; then
 elif k3d cluster list 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER_NAME}"; then
   log "k3d cluster '${CLUSTER_NAME}' already exists - reusing it"
 else
+  # start from a clean registry so --registry-create never trips over a leftover
+  if k3d registry list 2>/dev/null | awk '{print $1}' | grep -qx "k3d-${REGISTRY_NAME#k3d-}"; then
+    warn "registry '${REGISTRY_NAME}' already exists - deleting it"
+    k3d registry delete "${REGISTRY_NAME}" || true
+  fi
+
   log "Creating k3d cluster '${CLUSTER_NAME}' (with registry ${REGISTRY_NAME}:${REGISTRY_PORT})"
   k3d cluster create "${CLUSTER_NAME}" \
     --api-port "${API_PORT}" \
