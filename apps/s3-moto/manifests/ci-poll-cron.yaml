@@ -83,9 +83,3 @@ spec:
             - --insecure
             - --skip-tls-verify
             - --cache=false
-          volumeMounts:
-            - name: work
-              mountPath: /work
-        volumes:
-          - name: work
-            emptyDir: {}
