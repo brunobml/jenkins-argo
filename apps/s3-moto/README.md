@@ -41,23 +41,33 @@ is a plain ConfigMap, so `kubectl delete namespace s3-moto` heals on its own —
 Argo CD recreates the namespace, ConfigMap and app; the bucket (and its entries)
 survived in Moto. Tested: back to Healthy in ~75s, no manual steps.
 
-### Build loop (Argo Workflows + Argo Events + Image Updater)
+### Build loop (Argo Workflows + Image Updater)
 
 ```text
-POST http://s3-moto-ci.localhost/build
-      │  (or a GitHub push webhook)
-      ▼
-Argo Events  EventSource → Sensor  ── submits ──▶  Workflow: s3-moto-build
-                                                     checkout ─▶ kaniko
-                                                                   │ push
-                                                                   ▼
-                                          k3d-registry:5000/s3-moto-app:<git-sha>
-                                                                   │
-                        Argo CD Image Updater (polls every 2m) ◀───┘
-                          sets .spec.source.kustomize.images on the s3-moto App
-                                                                   │
-                                          Argo CD renders + syncs ─┘  → new pod
+git push ─▶ (main has a new sha)
+      │
+      ├─ s3-moto-poll CronWorkflow (every 2 min): sha in registry? no ─▶ build
+      │
+      └─ or: POST http://s3-moto-ci.localhost/build  ─▶ Argo Events Sensor ─▶ build
+                                                              │
+                          Workflow: checkout ─▶ kaniko ──push──┤
+                                                               ▼
+                                     k3d-registry:5000/s3-moto-app:<git-sha>
+                                                               │
+                     Argo CD Image Updater (polls every 2m) ◀──┘
+                       sets .spec.source.kustomize.images on the s3-moto App
+                                                               │
+                                     Argo CD renders + syncs ──┘  → new pod
 ```
+
+**Two triggers, use either:**
+
+- **`s3-moto-poll` CronWorkflow** (`manifests/ci-poll-cron.yaml`) - polls `main`
+  every 2 min and builds only when the sha isn't in the registry yet. Needs **no
+  inbound connectivity** - this is the one that works when GitHub can't reach
+  the cluster. `argo cron suspend s3-moto-poll -n argo-workflows` to pause it.
+- **Webhook** - `POST /build` → Argo Events `EventSource`/`Sensor` → build.
+  Instant, but needs the cluster reachable (a GitHub push webhook, or `curl`).
 
 - `app/Dockerfile` + `app/main.py` are the build source (not synced by Argo CD).
 - `image-updater.yaml` is an `ImageUpdater` CR (Image Updater v1.x): watch
@@ -69,17 +79,16 @@ Argo Events  EventSource → Sensor  ── submits ──▶  Workflow: s3-moto
 ## Try the whole thing
 
 ```bash
-# 1. change the app
+# 1. change the app + push
 $EDITOR apps/s3-moto/app/main.py
 git commit -am "s3-moto: tweak" && git push
 
-# 2. trigger a build (a GitHub webhook would do this automatically)
-curl -XPOST http://s3-moto-ci.localhost/build -d '{}'
-argo -n argo-workflows list                       # watch s3-moto-build-*
+# 2. wait ~2 min - s3-moto-poll notices the new sha and builds.
+#    (or don't wait: curl -XPOST http://s3-moto-ci.localhost/build -d '{}')
+argo list -n argo-workflows                        # watch s3-moto-poll-* / s3-moto-build-*
 
-# 3. Image Updater rolls it out within ~2-3 min (or force it):
-argocd app sync s3-moto
-curl -s http://s3-moto.localhost/                 # new code, entries intact
+# 3. Image Updater rolls it out within another ~2-3 min (or: argocd app sync s3-moto)
+curl -s http://s3-moto.localhost/                  # new code, entries intact
 ```
 
 Run pieces by hand:
