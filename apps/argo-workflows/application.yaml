@@ -54,6 +54,9 @@ spec:
             # keep the Workflow object 7 days (UI + archived-log links).
             workflowDefaults:
               spec:
+                # on the spec too (not just artifactRepository) so the UI /log
+                # endpoint falls back to the MinIO copy for GC'd pods
+                archiveLogs: true
                 podGC:
                   strategy: OnWorkflowCompletion
                   deleteDelayDuration: 30m
