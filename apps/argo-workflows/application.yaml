@@ -50,16 +50,17 @@ spec:
               prometheus.io/port: "9090"
               prometheus.io/path: /metrics
 
-            # Keep step pods 30 min after a workflow finishes (live debugging),
-            # keep the Workflow object 7 days (UI + archived-log links).
+            # The Argo UI's archived-log fallback is unreliable in v4.0.x
+            # (argoproj/argo-workflows#14885, #12948), so instead of GC-ing pods
+            # early we keep them for the whole Workflow lifetime - the UI then
+            # always has *live* logs. ttlStrategy deletes the Workflow (and its
+            # pods) after 7 days. archiveLogs still copies to MinIO as a backup /
+            # for the node "Artifacts" view; Loki+Grafana is the real log store.
             workflowDefaults:
               spec:
-                # on the spec too (not just artifactRepository) so the UI /log
-                # endpoint falls back to the MinIO copy for GC'd pods
                 archiveLogs: true
                 podGC:
-                  strategy: OnWorkflowCompletion
-                  deleteDelayDuration: 30m
+                  strategy: OnWorkflowDeletion
                 ttlStrategy:
                   secondsAfterCompletion: 604800
 
