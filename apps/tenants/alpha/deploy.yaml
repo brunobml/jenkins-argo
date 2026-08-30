@@ -1,0 +1,57 @@
+# tenant-alpha - a stand-alone app the "tenants" ApplicationSet turns into an
+# Argo CD Application. It knows nothing about ApplicationSet; it's just manifests.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  labels:
+    app: echo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:0.2.3
+          args:
+            - "-text=tenant alpha :: the first tenant"
+          ports:
+            - containerPort: 5678
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 32Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+spec:
+  selector:
+    app: echo
+  ports:
+    - port: 80
+      targetPort: 5678
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: alpha.tenants.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo
+                port:
+                  number: 80

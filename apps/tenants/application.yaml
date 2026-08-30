@@ -1,0 +1,25 @@
+# Deploys just the ApplicationSet (directory.include filters out the tenant
+# subdirs, which the git-directories generator handles instead).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/brunobml/jenkins-argo.git
+    targetRevision: main
+    path: apps/tenants
+    directory:
+      include: applicationset.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

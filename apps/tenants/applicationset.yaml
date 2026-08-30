@@ -1,0 +1,47 @@
+# ApplicationSet: one Argo CD Application per directory under apps/tenants/.
+#
+# The git "directories" generator lists sub-directories of apps/tenants/* (it
+# only matches directories, so applicationset.yaml / application.yaml here are
+# ignored). For each one it renders the template below, substituting Go-template
+# values from the generator: .path.basename ("alpha"), .path.path
+# ("apps/tenants/alpha"), .path.segments, ...
+#
+# Add apps/tenants/delta/ + push -> a "tenant-delta" Application appears with no
+# other wiring. Delete the directory -> the Application (and, with the sync
+# options below, its namespace) is pruned.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - git:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        revision: main
+        directories:
+          - path: apps/tenants/*
+
+  template:
+    metadata:
+      name: "tenant-{{.path.basename}}"
+      labels:
+        tenant: "{{.path.basename}}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        targetRevision: main
+        path: "{{.path.path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "tenant-{{.path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
