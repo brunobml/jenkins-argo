@@ -18,6 +18,16 @@ spec:
           type: daemonset
 
         alloy:
+          # tail the on-disk pod logs (/var/log/pods) instead of the k8s API
+          mounts:
+            varlog: true
+
+          extraEnv:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
           configMap:
             create: true
             content: |-
@@ -26,7 +36,7 @@ spec:
 
                 selectors {
                   role  = "pod"
-                  field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
+                  field = "spec.nodeName=" + coalesce(sys.env("NODE_NAME"), constants.hostname)
                 }
               }
 
@@ -68,14 +78,31 @@ spec:
                   source_labels = ["__meta_kubernetes_pod_label_workflows_argoproj_io_workflow_template"]
                   target_label  = "workflow_template"
                 }
+
+                // /var/log/pods/<ns>_<pod>_<uid>/<container>/*.log
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+                  separator     = "/"
+                  action        = "replace"
+                  replacement   = "/var/log/pods/*$1/*.log"
+                  target_label  = "__path__"
+                }
               }
 
-              loki.source.kubernetes "pod_logs" {
-                targets    = discovery.relabel.pod_logs.output
-                forward_to = [loki.process.pod_logs.receiver]
+              local.file_match "pod_logs" {
+                path_targets = discovery.relabel.pod_logs.output
+              }
+
+              loki.source.file "pod_logs" {
+                targets       = local.file_match.pod_logs.targets
+                forward_to    = [loki.process.pod_logs.receiver]
+                tail_from_end = false
               }
 
               loki.process "pod_logs" {
+                // kubelet writes CRI-format lines: "<ts> stdout F <message>"
+                stage.cri {}
+
                 stage.static_labels {
                   values = {
                     cluster = "kind-lab",
