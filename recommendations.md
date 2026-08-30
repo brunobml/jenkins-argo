@@ -26,7 +26,7 @@ Legend:  `[x]` done  `[ ]` next  `( * )` stretch / optional
 ## Unit A — ApplicationSet (finish the tour)
 
 - [x] **A0. git directories generator** — `apps/tenants`, one App per folder
-- [ ] **A1. list generator** — deploy one demo app to 3 namespaces from a
+- [x] **A1. list generator** — deploy one demo app to 3 namespaces from a
   hard-coded list. Smallest possible ApplicationSet. *Teaches:* `generators.list`,
   the simplest template substitution.
 - [ ] **A2. git files generator** — put a `tenant.yaml` (replicas, message, host)
