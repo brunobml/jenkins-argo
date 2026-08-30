@@ -51,16 +51,15 @@ spec:
               prometheus.io/path: /metrics
 
             # The Argo UI's archived-log fallback is unreliable in v4.0.x
-            # (argoproj/argo-workflows#14885, #12948), so instead of GC-ing pods
-            # early we keep them for the whole Workflow lifetime - the UI then
-            # always has *live* logs. ttlStrategy deletes the Workflow (and its
-            # pods) after 7 days. archiveLogs still copies to MinIO as a backup /
-            # for the node "Artifacts" view; Loki+Grafana is the real log store.
+            # (argoproj/argo-workflows#14885, #12948). So: NO podGC - completed
+            # pods stay (in Completed state, ~no resources) so the UI always has
+            # *live* logs. ttlStrategy deletes the Workflow after 7 days, which
+            # cascade-deletes its pods. archiveLogs still copies to MinIO as a
+            # backup / for the node "Artifacts" view; Loki+Grafana is the real
+            # searchable log store.
             workflowDefaults:
               spec:
                 archiveLogs: true
-                podGC:
-                  strategy: OnWorkflowDeletion
                 ttlStrategy:
                   secondsAfterCompletion: 604800
 
