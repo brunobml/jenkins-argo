@@ -4,8 +4,7 @@ Each guestbook entry is one S3 object under entries/. There is no database and n
 local state: restart the pod and the entries are still there (in the bucket);
 delete the bucket and the app has nothing to serve.
 
-Config comes entirely from the environment (injected from the s3-moto-infra
-Secret that the provisioning workflow writes):
+Config comes from the environment (the Git-managed s3-moto-config ConfigMap):
     BUCKET_NAME, AWS_ENDPOINT_URL, AWS_DEFAULT_REGION
 Point it at real AWS by dropping AWS_ENDPOINT_URL and using real credentials.
 """
@@ -38,6 +37,80 @@ BANNER = r"""
       /'\_   _/`\  |_______|
       \___)=(___/   s3://prod
 """
+
+# Architecture of the whole s3-moto solution (rendered with mermaid.js).
+ARCH = """flowchart TB
+  dev(["git commit &amp; push"]) --> gh[("GitHub repo")]
+
+  subgraph AWF["Argo Workflows &middot; ns argo-workflows"]
+    poll["s3-moto-poll<br/>CronWorkflow &middot; every 2 min"]
+    wh["s3-moto-ci<br/>Argo Events webhook"]
+    build["s3-moto-build<br/>git checkout + kaniko"]
+    prov["s3-moto-provision<br/>terraform apply"]
+    teardown["s3-moto-teardown<br/>terraform destroy"]
+    poll --> build
+    wh --> build
+  end
+
+  subgraph ACD["Argo CD &middot; ns argocd"]
+    root["platform-apps<br/>app-of-apps"] --> sapp["s3-moto<br/>Application"]
+    iu["Image Updater<br/>ImageUpdater CR"]
+  end
+
+  subgraph RUN["Runtime &middot; ns s3-moto"]
+    ing["Ingress<br/>s3-moto.localhost"] --> gb["s3-moto-app<br/>guestbook Deployment"]
+    cfg["s3-moto-config<br/>ConfigMap"] --> gb
+  end
+
+  reg[("k3d-registry:5000<br/>s3-moto-app tag = git sha")]
+  moto[("Moto S3 &middot; on the host<br/>host.k3d.internal:5000<br/>bucket s3-consumer-demo")]
+
+  gh -. "new sha?" .-> poll
+  gh --> root
+  build -- "push image" --> reg
+  reg -. "newest tag" .-> iu
+  iu -- "set kustomize image" --> sapp
+  sapp -- "PreSync hook" --> prov
+  sapp -- "PreDelete hook" --> teardown
+  sapp --> gb
+  sapp --> cfg
+  prov -- "create bucket" --> moto
+  gb <-->|"put / list / get entries/*.txt"| moto
+
+  subgraph OBS["Observability"]
+    alloy["Alloy<br/>tails /var/log/pods"] --> loki[("Loki")]
+    loki --> graf["Grafana"]
+    prom[("Prometheus")] --> graf
+    minio[("MinIO<br/>archived step logs")]
+  end
+  build -. logs .-> alloy
+  prov -. logs .-> alloy
+  gb -. logs .-> alloy
+  build -. artifacts .-> minio
+
+  classDef store fill:#eef,stroke:#88a;
+  class reg,moto,loki,prom,minio store;
+"""
+
+STYLE = """
+  body{font-family:system-ui,-apple-system,sans-serif;max-width:1080px;margin:2rem auto;padding:0 1rem;color:#222}
+  pre{background:#f5f5f5;padding:.8rem;border-radius:6px;overflow:auto;line-height:1.35}
+  details{margin:.5rem 0 1.5rem}
+  summary{cursor:pointer;font-size:1.05rem}
+  .mermaid{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;overflow:auto;margin-top:.6rem}
+  h1{margin:.2rem 0}
+  form{margin:.6rem 0}
+  input{padding:.35rem .5rem}
+  button{padding:.35rem .7rem}
+  li{margin:.2rem 0}
+"""
+
+MERMAID = (
+    '<script type="module">'
+    "import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';"
+    "mermaid.initialize({startOnLoad:true,theme:'neutral',flowchart:{useMaxWidth:true}});"
+    "</script>"
+)
 
 
 def entries():
@@ -72,12 +145,16 @@ class Handler(BaseHTTPRequestHandler):
             lis = "".join(f"<li>{html.escape(x)}</li>" for x in items) or "<li><em>no entries yet</em></li>"
             page = (
                 f"<!doctype html><meta charset=utf-8><title>s3-moto</title>"
+                f"<style>{STYLE}</style>"
                 f"<pre>{html.escape(BANNER)}</pre>"
+                f"<details open><summary><strong>how it's built &amp; deployed</strong></summary>"
+                f'<pre class="mermaid">{ARCH}</pre></details>'
                 f"<h1>Guestbook</h1>"
                 f'<form action="/add"><input name="msg" placeholder="say something" autofocus>'
                 f"<button>add</button></form><ul>{lis}</ul>"
                 f"<hr><small>bucket <code>{html.escape(BUCKET)}</code> &bull; "
                 f"{len(items)} entries &bull; endpoint {html.escape(ENDPOINT or 'aws')}</small>"
+                f"{MERMAID}"
             )
             self._send(200, page)
         except Exception as e:  # bucket missing / unreachable
