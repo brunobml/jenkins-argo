@@ -33,7 +33,7 @@ Legend:  `[x]` done  `[ ]` next  `( * )` stretch / optional
   in each `apps/tenants/<name>/` and drive the template from it instead of the
   folder name. *Teaches:* passing **structured values** into the template,
   `{{.replicas}}` vs `{{.path.basename}}`.
-- [ ] **A3. matrix generator** — `tenants × {dev,prod}` → 6 Applications.
+- [x] **A3. matrix generator** — `tenants × {dev,prod}` → 6 Applications.
   *Teaches:* combining generators, nested params, `goTemplate` ranges.
 - [ ] **A4. pull request generator** — an `preview-pr-<n>` Application per open
   GitHub PR: own namespace, deployed from the PR branch, torn down on
