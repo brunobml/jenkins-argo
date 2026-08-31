@@ -1,0 +1,25 @@
+# Deploys just the ApplicationSet (directory.include filters out chart/ and the
+# product.yaml config files).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: products
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/brunobml/jenkins-argo.git
+    targetRevision: main
+    path: apps/products
+    directory:
+      include: applicationset.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

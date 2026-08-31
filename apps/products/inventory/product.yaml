@@ -1,0 +1,9 @@
+name: inventory
+team: warehouse
+replicas: 2
+message: "stock levels"
+featureFlags:
+  - reservations
+resources:
+  cpu: 20m
+  memory: 32Mi

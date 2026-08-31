@@ -1,0 +1,33 @@
+{{- $flags := ternary (join "," .Values.featureFlags) "none" (gt (len .Values.featureFlags) 0) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  labels:
+    app: echo
+    product: {{ .Values.name }}
+    team: {{ .Values.team }}
+spec:
+  replicas: {{ .Values.replicas }}          # already an int (from git-files YAML), no `| int`
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+        product: {{ .Values.name }}
+    spec:
+      containers:
+        - name: echo
+          image: {{ .Values.image }}
+          args:
+            - {{ printf "-text=%s [%s] :: %s :: flags=%s" .Values.name .Values.team .Values.message $flags | quote }}
+          ports:
+            - containerPort: 5678
+          resources:
+            requests:
+              cpu: {{ .Values.resources.cpu }}
+              memory: {{ .Values.resources.memory }}
+            limits:
+              memory: {{ .Values.resources.memory }}

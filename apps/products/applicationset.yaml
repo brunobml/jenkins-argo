@@ -1,0 +1,58 @@
+# ApplicationSet - git FILES generator (roadmap A2).
+#
+# The generator reads every file matching the glob. The file's parsed YAML
+# becomes the template's values, MERGED with `.path` metadata about where the
+# file lives:
+#   {{ .name }} {{ .replicas }} {{ .featureFlags }}   <- from product.yaml (real types!)
+#   {{ .path.basename }} {{ .path.path }}              <- from the generator
+#
+# vs the list generator (A1), the instance definitions now live next to the code
+# and can be edited by whoever owns that product, not in one central file.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: products
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - git:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        revision: main
+        files:
+          - path: apps/products/*/product.yaml
+
+  template:
+    metadata:
+      name: "product-{{ .name }}"
+      labels:
+        product: "{{ .name }}"
+        team: "{{ .team }}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        targetRevision: main
+        path: apps/products/chart
+        helm:
+          releaseName: "{{ .name }}"
+          # helm.values is a plain STRING field, so unrendered {{ }} is legal
+          # here; after the ApplicationSet renders it, Helm parses it as YAML and
+          # replicas stays an int / featureFlags stays a list (unlike A1's
+          # helm.parameters, which were all strings needing `| int`).
+          values: |
+            name: {{ .name }}
+            team: {{ .team }}
+            message: {{ .message | quote }}
+            replicas: {{ .replicas }}
+            featureFlags: {{ .featureFlags | toJson }}
+            resources: {{ .resources | toJson }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "product-{{ .name }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

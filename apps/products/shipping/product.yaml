@@ -1,0 +1,8 @@
+name: shipping
+team: logistics
+replicas: 1
+message: "labels and tracking"
+featureFlags: []
+resources:
+  cpu: 15m
+  memory: 32Mi

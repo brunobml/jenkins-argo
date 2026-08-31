@@ -1,0 +1,9 @@
+# A rendered artifact that proves the structured values (list!) came through.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-info
+data:
+  team: {{ .Values.team | quote }}
+  feature-flags: {{ .Values.featureFlags | toJson | quote }}
+  replicas: {{ .Values.replicas | quote }}

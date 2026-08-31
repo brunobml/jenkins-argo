@@ -1,0 +1,5 @@
+apiVersion: v2
+name: product-echo
+description: One http-echo per product; values come from the ApplicationSet git-files generator
+version: 0.1.0
+appVersion: "0.2.3"

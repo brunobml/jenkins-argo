@@ -1,0 +1,11 @@
+# Defaults - overridden per product by the ApplicationSet (helm.valuesObject,
+# built from each product.yaml).
+name: demo
+team: none
+replicas: 1
+message: "a product"
+image: hashicorp/http-echo:0.2.3
+featureFlags: []
+resources:
+  cpu: 10m
+  memory: 16Mi
