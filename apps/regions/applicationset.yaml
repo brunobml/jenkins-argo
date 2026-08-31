@@ -28,9 +28,6 @@ spec:
           - region: apac
             city: Singapore
             replicas: "1"
-          - region: sa
-            city: São Paulo
-            replicas: "1"
 
   template:
     metadata:
