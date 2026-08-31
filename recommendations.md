@@ -29,7 +29,7 @@ Legend:  `[x]` done  `[ ]` next  `( * )` stretch / optional
 - [x] **A1. list generator** — deploy one demo app to 3 namespaces from a
   hard-coded list. Smallest possible ApplicationSet. *Teaches:* `generators.list`,
   the simplest template substitution.
-- [ ] **A2. git files generator** — put a `tenant.yaml` (replicas, message, host)
+- [x] **A2. git files generator** — put a `tenant.yaml` (replicas, message, host)
   in each `apps/tenants/<name>/` and drive the template from it instead of the
   folder name. *Teaches:* passing **structured values** into the template,
   `{{.replicas}}` vs `{{.path.basename}}`.
