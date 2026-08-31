@@ -1,70 +1,76 @@
-# products — ApplicationSet, git files generator (roadmap A2)
+# products — ApplicationSet: git files (A2) + matrix (A3)
 
-The **git files** generator reads a config file per instance. Its parsed YAML
-becomes the template values — with **real types** (int, list, map), not strings.
+Two ApplicationSets over the **same** `product.yaml` files and Helm chart:
 
-| | list (A1) | git files (A2) |
+| | `products` (A2) | `products-matrix` (A3) |
 | --- | --- | --- |
-| instances defined in | one central file (`applicationset.yaml`) | `product.yaml` **next to each product** |
-| value types | strings only (`replicas: "2"` → `\| int`) | native YAML (`replicas: 3`, `featureFlags: [...]`) |
-| who edits them | whoever owns the ApplicationSet | whoever owns that folder |
+| generator | git **files** | **matrix**: git files × list(dev, prod) |
+| result | `product-<name>` (3 apps) | `product-<name>-<env>` (3 × 2 = 6 apps) |
+| namespace | `product-<name>` | `product-<name>-<env>` |
+| replicas | from `product.yaml` | `product.yaml` value **×** the env's `replicaFactor` |
 
 ```
 apps/products/
-├── application.yaml       root deploys just the ApplicationSet
-├── applicationset.yaml    git-files generator + template
-├── chart/                 one shared Helm chart
-├── checkout/product.yaml  ─┐  name, team, replicas(int), featureFlags(list), resources(map)
-├── inventory/product.yaml  ├─ each -> product-<name>, ns product-<name>,
-└── shipping/product.yaml  ─┘     <name>.products.localhost
+├── application.yaml            deploys both applicationset*.yaml
+├── applicationset.yaml         A2 — git files
+├── applicationset-matrix.yaml  A3 — matrix (files × envs)
+├── chart/                      shared; namespace = .Release.Namespace, so it
+│                               works for product-<name> and product-<name>-<env>
+├── checkout/product.yaml   ─┐  { name, team, replicas: 3, featureFlags: [...] }
+├── inventory/product.yaml   ├
+└── shipping/product.yaml   ─┘
 ```
+
+## The matrix generator
+
+```yaml
+generators:
+  - matrix:
+      generators:
+        - git: { files: [ path: apps/products/*/product.yaml ] }   # A: name, replicas, ...
+        - list:
+            elements:
+              - { env: dev,  replicaFactor: "1" }                   # B: env, replicaFactor
+              - { env: prod, replicaFactor: "2" }
+```
+
+One rendered Application per **(A, B)** pair, with **both** param sets merged, so
+the template can combine them: `replicas: {{ mul .replicas (atoi .replicaFactor) }}`.
+
+- Exactly **two** child generators (nest matrices for more).
+- If both generators produced a key with the same name, the **later** one wins.
+- `list` values are strings → `atoi` before `mul`; `.replicas` from the file is
+  already an int.
 
 ## See it
 
 ```bash
-kubectl -n argocd get applicationset products
-argocd appset get products                       # generated params, one set per file
+kubectl -n argocd get applicationset                       # products + products-matrix
+kubectl -n argocd get applications -l product=checkout     # checkout, checkout-dev, checkout-prod
+argocd appset get products-matrix                          # 6 generated param sets
 
-curl http://checkout.products.localhost           # checkout [payments] :: ... :: flags=fast-path,one-click
-curl http://shipping.products.localhost           # ... :: flags=none   (empty list)
+curl http://checkout.products.localhost        # checkout [payments]        (A2)
+curl http://checkout-dev.products.localhost    # checkout/dev [payments]    (A3)
+curl http://checkout-prod.products.localhost   # checkout/prod [payments]
 
-kubectl -n product-checkout get deploy echo -o jsonpath='{.spec.replicas}'   # 3  (a real int)
-kubectl -n product-checkout get cm product-info -o yaml                       # the list survived
+kubectl -n product-checkout-dev  get deploy echo -o jsonpath='{.spec.replicas}'   # 3  (3 x 1)
+kubectl -n product-checkout-prod get deploy echo -o jsonpath='{.spec.replicas}'   # 6  (3 x 2)
 ```
 
 ## Try it
 
 ```bash
-# 1. change a value in place
-sed -i 's/replicas: 3/replicas: 1/' apps/products/checkout/product.yaml
-git commit -am "checkout: scale down" && git push
-argocd app get products --hard-refresh
-# -> product-checkout Deployment scales to 1
+# add a "staging" env: edit applicationset-matrix.yaml, add
+#   - { env: staging, replicaFactor: "1" }
+# -> 3 more Applications (product-*-staging) appear on the next refresh
 
-# 2. new product
-mkdir apps/products/search
-cat > apps/products/search/product.yaml <<'YAML'
-name: search
-team: discovery
-replicas: 2
-message: "full-text search"
-featureFlags: [typeahead]
-resources: { cpu: 20m, memory: 32Mi }
-YAML
-git add apps/products/search && git commit -m "product: search" && git push
-argocd app get products --hard-refresh
-# -> product-search appears
+# a per-product change flows to every env: bump replicas in checkout/product.yaml
+# -> product-checkout, -dev (x1), -prod (x2) all rescale
 ```
 
 ## Notes
 
-- The generator merges `.path.*` (basename, path, segments) into the params, so
-  you can use either the file contents *or* where the file lives.
-- `helm.valuesObject` (vs `helm.parameters`) is what lets `replicas` stay an int
-  and `featureFlags` stay a list. `{{ .featureFlags | toJson }}` renders inline
-  JSON, which is valid YAML.
-- `goTemplateOptions: [missingkey=error]` → a `product.yaml` missing a key the
-  template needs fails the whole ApplicationSet loudly (check
-  `argocd appset get products` / the applicationset-controller logs).
-- Next: **A3 (matrix)** combines this with an environments generator to get
-  `product × env` Applications.
+- The shared chart renders `kind: Namespace: {{ .Release.Namespace }}` (Argo CD
+  passes `--namespace <destination.namespace>` to helm), so one chart serves
+  both `product-<name>` and `product-<name>-<env>` with no `fullName` parameter.
+- Next: **A4** — the pull request generator (an Application per open GitHub PR).

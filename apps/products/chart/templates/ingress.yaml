@@ -5,7 +5,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: {{ .Values.name }}.products.localhost
+    - host: {{ trimPrefix "product-" .Release.Namespace }}.products.localhost
       http:
         paths:
           - path: /

@@ -1,0 +1,66 @@
+# ApplicationSet - MATRIX generator (roadmap A3).
+#
+# A matrix combines exactly two child generators and produces one result per
+# (A, B) pair, with the params of both merged. Here:
+#
+#   git files (apps/products/*/product.yaml)   x   list (dev, prod)
+#     = product-checkout-dev, product-checkout-prod, product-inventory-dev, ...
+#
+# The template then has BOTH sets of keys available:
+#   {{ .name }} {{ .replicas }} {{ .featureFlags }}   from the product.yaml
+#   {{ .env }}  {{ .replicaFactor }}                   from the list
+# and can combine them - e.g. multiply replicas for prod.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: products-matrix
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/brunobml/jenkins-argo.git
+              revision: main
+              files:
+                - path: apps/products/*/product.yaml
+          - list:
+              elements:
+                - env: dev
+                  replicaFactor: "1"
+                - env: prod
+                  replicaFactor: "2"
+
+  template:
+    metadata:
+      name: "product-{{ .name }}-{{ .env }}"
+      labels:
+        product: "{{ .name }}"
+        team: "{{ .team }}"
+        env: "{{ .env }}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/brunobml/jenkins-argo.git
+        targetRevision: main
+        path: apps/products/chart
+        helm:
+          releaseName: "{{ .name }}-{{ .env }}"
+          values: |
+            name: {{ .name }}
+            team: {{ .team }}
+            env: {{ .env }}
+            message: {{ .message | quote }}
+            replicas: {{ mul .replicas (atoi .replicaFactor) }}
+            featureFlags: {{ .featureFlags | toJson }}
+            resources: {{ .resources | toJson }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "product-{{ .name }}-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

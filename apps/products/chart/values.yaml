@@ -2,6 +2,7 @@
 # built from each product.yaml).
 name: demo
 team: none
+env: base
 replicas: 1
 message: "a product"
 image: hashicorp/http-echo:0.2.3

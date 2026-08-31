@@ -1,4 +1,5 @@
 {{- $flags := ternary (join "," .Values.featureFlags) "none" (gt (len .Values.featureFlags) 0) -}}
+{{- $label := ternary (printf "%s/%s" .Values.name .Values.env) .Values.name (ne .Values.env "base") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +23,7 @@ spec:
         - name: echo
           image: {{ .Values.image }}
           args:
-            - {{ printf "-text=%s [%s] :: %s :: flags=%s" .Values.name .Values.team .Values.message $flags | quote }}
+            - {{ printf "-text=%s [%s] :: %s :: flags=%s" $label .Values.team .Values.message $flags | quote }}
           ports:
             - containerPort: 5678
           resources:

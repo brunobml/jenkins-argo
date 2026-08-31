@@ -1,6 +1,10 @@
+# The Application's destination.namespace (Argo CD passes it as .Release.Namespace).
+# Works for both the plain `products` ApplicationSet (product-<name>) and the
+# `products-matrix` one (product-<name>-<env>) with no extra parameter.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: product-{{ .Values.name }}
+  name: {{ .Release.Namespace }}
   labels:
     team: {{ .Values.team }}
+    env: {{ .Values.env }}

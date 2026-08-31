@@ -1,5 +1,5 @@
-# Deploys just the ApplicationSet (directory.include filters out chart/ and the
-# product.yaml config files).
+# Deploys the ApplicationSets (both applicationset*.yaml); the include filters
+# out chart/ and the product.yaml config files.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +13,7 @@ spec:
     targetRevision: main
     path: apps/products
     directory:
-      include: applicationset.yaml
+      include: "applicationset*.yaml"
 
   destination:
     server: https://kubernetes.default.svc
