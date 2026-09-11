@@ -5,4 +5,4 @@ syncOptions:
 type: dir
 repoURL: https://github.com/brunobml/jenkins-argo.git
 revision: main
-path: apps/canary-demo/manifests
+manifestPath: apps/canary-demo/manifests

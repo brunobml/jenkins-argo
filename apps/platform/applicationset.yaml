@@ -15,7 +15,10 @@
 #   type: helm | oci | dir     - single-source apps
 #   repoURL, revision          - single-source apps
 #   chart                      - type helm
-#   path                       - type dir
+#   manifestPath               - type dir, becomes `source.path`. NOT `path` -
+#                                 the git files generator reserves that name for
+#                                 the file's own location metadata
+#                                 (path.basename etc.) and silently wins.
 #   directoryInclude           - type dir, `source.directory.include`
 #   values: {...}              - helm valuesObject (helm/oci)
 #   sources: [...]             - multi-source apps (verbatim Argo source list)
@@ -60,7 +63,7 @@ spec:
     {{- $src := dict "repoURL" .repoURL "targetRevision" (.revision | toString) -}}
     {{- if eq .type "helm" }}{{- $_ := set $src "chart" .chart }}{{- end -}}
     {{- if eq .type "oci" }}{{- $_ := set $src "path" "." }}{{- end -}}
-    {{- if eq .type "dir" }}{{- $_ := set $src "path" .path }}{{- end -}}
+    {{- if eq .type "dir" }}{{- $_ := set $src "path" .manifestPath }}{{- end -}}
     {{- if .directoryInclude }}{{- $_ := set $src "directory" (dict "include" .directoryInclude) }}{{- end -}}
     {{- if .values }}{{- $_ := set $src "helm" (dict "releaseName" .name "valuesObject" .values) }}{{- end -}}
     {{- $spec := dict -}}

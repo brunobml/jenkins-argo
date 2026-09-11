@@ -8,4 +8,4 @@ syncOptions:
 type: dir
 repoURL: https://github.com/brunobml/jenkins-argo.git
 revision: main
-path: apps/argo-events-demo/manifests
+manifestPath: apps/argo-events-demo/manifests

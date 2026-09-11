@@ -4,5 +4,5 @@ syncOptions: []
 type: dir
 repoURL: https://github.com/brunobml/jenkins-argo.git
 revision: main
-path: apps/regions
+manifestPath: apps/regions
 directoryInclude: applicationset.yaml
