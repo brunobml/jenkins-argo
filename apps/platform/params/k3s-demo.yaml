@@ -1,0 +1,8 @@
+name: k3s-demo
+namespace: k3s-demo
+syncOptions:
+- CreateNamespace=true
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+manifestPath: apps/k3s-demo/manifests

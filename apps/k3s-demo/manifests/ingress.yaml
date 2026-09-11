@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k3s-demo
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: k3s-demo.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: k3s-demo
+                port:
+                  name: http
