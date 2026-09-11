@@ -11,7 +11,7 @@ spec:
     targetRevision: main
     path: apps/platform
     directory:
-      include: applicationset.yaml'
+      include: 'applicationset.yaml'
 
   destination:
     server: https://kubernetes.default.svc
