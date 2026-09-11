@@ -21,9 +21,9 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              mkdir -p /www
-              echo "<h1>Hello from k3s-demo!</h1><p>Built by Bitbucket Pipelines & deployed by ArgoCD on local k3s.</p>" > /www/index.html
-              exec busybox httpd -f -p 8080 -h /www
+              while true; do
+                printf 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<h1>Hello from k3s-demo!</h1><p>Built by Bitbucket Pipelines & deployed by ArgoCD on local k3s.</p>\n' | nc -l -p 8080
+              done
           ports:
             - containerPort: 8080
               name: http
