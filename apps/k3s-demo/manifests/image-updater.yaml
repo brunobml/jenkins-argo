@@ -1,0 +1,19 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: k3s-demo
+  namespace: argocd
+spec:
+  applicationRefs:
+    - namePattern: k3s-demo
+      images:
+        - alias: app
+          imageName: k3d-registry:5000/k3s-demo
+          manifestTargets:
+            kustomize:
+              name: k3d-registry:5000/k3s-demo
+          commonUpdateSettings:
+            updateStrategy: newest-build
+            allowTags: "regexp:^[0-9a-f]{7,40}$"
+      writeBackConfig:
+        method: argocd

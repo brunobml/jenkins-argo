@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - manifests/deployment.yaml
+  - manifests/service.yaml
+  - manifests/ingress.yaml
+  - manifests/image-updater.yaml
+
+images:
+  - name: k3d-registry:5000/k3s-demo
+    newTag: b548a65

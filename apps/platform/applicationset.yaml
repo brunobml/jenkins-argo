@@ -38,6 +38,9 @@ spec:
     - name: s3-moto
       jsonPointers:
         - /spec/source/kustomize/images
+    - name: k3s-demo
+      jsonPointers:
+        - /spec/source/kustomize/images
 
   generators:
     - git:

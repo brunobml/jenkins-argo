@@ -5,4 +5,4 @@ syncOptions:
 type: dir
 repoURL: https://github.com/brunobml/jenkins-argo.git
 revision: main
-manifestPath: apps/k3s-demo/manifests
+manifestPath: apps/k3s-demo
