@@ -1,0 +1,81 @@
+name: argo-workflows
+namespace: argo-workflows
+finalizer: true
+syncOptions:
+- CreateNamespace=true
+sources:
+- repoURL: https://argoproj.github.io/argo-helm
+  targetRevision: 1.0.23
+  chart: argo-workflows
+  helm:
+    releaseName: argo-workflows
+    valuesObject:
+      workflow:
+        serviceAccount:
+          create: true
+          name: argo-workflow
+        rbac:
+          create: true
+      artifactRepository:
+        archiveLogs: true
+        s3:
+          endpoint: minio.minio.svc.cluster.local:9000
+          bucket: argo-workflows
+          insecure: true
+          accessKeySecret:
+            name: argo-artifacts-minio
+            key: accesskey
+          secretKeySecret:
+            name: argo-artifacts-minio
+            key: secretkey
+      controller:
+        workflowNamespaces:
+        - argo-workflows
+        podAnnotations:
+          prometheus.io/scrape: 'true'
+          prometheus.io/port: '9090'
+          prometheus.io/path: /metrics
+        workflowDefaults:
+          spec:
+            archiveLogs: true
+            ttlStrategy:
+              secondsAfterCompletion: 604800
+        metricsConfig:
+          enabled: true
+          secure: false
+        telemetryConfig:
+          enabled: true
+          secure: false
+      server:
+        enabled: true
+        authModes:
+        - sso
+        - server
+        secure: false
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          hosts:
+          - workflows.localhost
+          paths:
+          - /
+          pathType: Prefix
+        sso:
+          enabled: true
+          issuer: http://keycloak.localhost/realms/platform
+          clientId:
+            name: argo-workflows-sso
+            key: client-id
+          clientSecret:
+            name: argo-workflows-sso
+            key: client-secret
+          redirectUrl: http://workflows.localhost/oauth2/callback
+          scopes:
+          - email
+          - profile
+          rbac:
+            enabled: false
+      singleNamespace: true
+- repoURL: https://github.com/brunobml/jenkins-argo.git
+  targetRevision: main
+  path: apps/argo-workflows/manifests

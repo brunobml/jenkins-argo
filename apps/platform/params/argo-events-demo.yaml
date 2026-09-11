@@ -1,0 +1,11 @@
+name: argo-events-demo
+namespace: argo-events
+finalizer: true
+syncOptions:
+- CreateNamespace=true
+- ServerSideApply=true
+- SkipDryRunOnMissingResource=true
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/argo-events-demo/manifests

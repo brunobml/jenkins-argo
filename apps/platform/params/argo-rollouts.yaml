@@ -1,0 +1,26 @@
+name: argo-rollouts
+namespace: argo-rollouts
+syncOptions:
+- CreateNamespace=true
+- ServerSideApply=true
+type: helm
+repoURL: https://argoproj.github.io/argo-helm
+revision: 2.41.1
+chart: argo-rollouts
+values:
+  installCRDs: true
+  controller:
+    replicas: 1
+  dashboard:
+    enabled: true
+    replicas: 1
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hosts:
+      - rollouts.localhost
+      paths:
+      - /
+      pathType: Prefix

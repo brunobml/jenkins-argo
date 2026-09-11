@@ -1,0 +1,101 @@
+name: grafana
+namespace: grafana
+syncOptions:
+- CreateNamespace=true
+type: oci
+repoURL: oci://ghcr.io/grafana/helm-charts/grafana
+revision: 10.1.4
+values:
+  assertNoLeakedSecrets: false
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+    - grafana.localhost
+  grafana.ini:
+    server:
+      root_url: http://grafana.localhost
+    auth:
+      oauth_allow_insecure_email_lookup: true
+    auth.generic_oauth:
+      enabled: true
+      name: Keycloak
+      client_id: grafana
+      client_secret: grafana-oidc-secret
+      scopes: openid profile email
+      auth_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/auth
+      token_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/token
+      api_url: http://keycloak.localhost/realms/platform/protocol/openid-connect/userinfo
+      login_attribute_path: preferred_username
+      groups_attribute_path: groups
+      role_attribute_path: contains(groups[*], 'platform-admins') && 'GrafanaAdmin' || contains(groups[*], 'platform-viewers') && 'Viewer' || 'Viewer'
+      allow_assign_grafana_admin: true
+      auto_login: false
+      use_pkce: true
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 5Gi
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.prometheus.svc.cluster.local
+        isDefault: true
+        editable: true
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://loki-gateway.loki.svc.cluster.local
+        isDefault: false
+        editable: false
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: default
+        orgId: 1
+        folder: Kubernetes
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      argo-workflows-overview:
+        url: https://raw.githubusercontent.com/brunobml/jenkins-argo/main/apps/grafana/argo-workflow-dashboard.json
+        datasource: Prometheus
+      kubernetes-overview:
+        json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\": false,\n  \"panels\": [\n    {\n      \"type\": \"stat\",\n      \"title\": \"Total Pods\",\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"PBFA97CFB590B2093\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"count(kube_pod_info)\",\n          \"instant\": true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"gridPos\": {\n        \"h\": 6,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 0\n      }\n    },\n    {\n      \"type\": \"stat\",\n      \"title\": \"Running Pods\",\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"PBFA97CFB590B2093\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(kube_pod_status_phase{phase=\\\"Running\\\"})\",\n          \"instant\": true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"gridPos\": {\n        \"h\": 6,\n        \"w\": 6,\n        \"x\": 6,\n\
+          \        \"y\": 0\n      }\n    },\n    {\n      \"type\": \"stat\",\n      \"title\": \"Pending or Failed Pods\",\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"PBFA97CFB590B2093\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(kube_pod_status_phase{phase=~\\\"Pending|Failed\\\"})\",\n          \"instant\": true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"gridPos\": {\n        \"h\": 6,\n        \"w\": 6,\n        \"x\": 12,\n        \"y\": 0\n      }\n    },\n    {\n      \"type\": \"stat\",\n      \"title\": \"Prometheus Targets Up\",\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"PBFA97CFB590B2093\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(up)\",\n          \"instant\": true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"gridPos\": {\n        \"h\": 6,\n        \"w\": 6,\n        \"x\": 18,\n        \"y\": 0\n      }\n    },\n    {\n\
+          \      \"type\": \"bargauge\",\n      \"title\": \"Pods by Namespace\",\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"PBFA97CFB590B2093\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"count(kube_pod_info) by (namespace)\",\n          \"instant\": true,\n          \"legendFormat\": \"{{namespace}}\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"gridPos\": {\n        \"h\": 9,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 6\n      }\n    }\n  ],\n  \"refresh\": \"30s\",\n  \"schemaVersion\": 41,\n  \"tags\": [\n    \"kubernetes\",\n    \"gitops\"\n  ],\n  \"time\": {\n    \"from\": \"now-1h\",\n    \"to\": \"now\"\n  },\n  \"timezone\": \"browser\",\n  \"title\": \"Kubernetes Overview\",\n  \"uid\": \"kubernetes-overview\",\n  \"version\": 1\n}        \n"
+      kubernetes-logs:
+        json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\": false,\n  \"panels\": [\n    {\n      \"datasource\": {\n        \"type\": \"loki\",\n        \"uid\": \"loki\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"short\"\n        },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"id\": 1,\n      \"options\": {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n        },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum by (namespace) (count_over_time({cluster=\\\"kind-lab\\\"}[1m]))\",\n          \"legendFormat\": \"{{namespace}}\",\n          \"queryType\": \"range\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Log Volume by Namespace\"\
+          ,\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\": {\n        \"type\": \"loki\",\n        \"uid\": \"loki\"\n      },\n      \"gridPos\": {\n        \"h\": 10,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 8\n      },\n      \"id\": 2,\n      \"options\": {\n        \"dedupStrategy\": \"none\",\n        \"enableLogDetails\": true,\n        \"prettifyLogMessage\": false,\n        \"showCommonLabels\": false,\n        \"showLabels\": false,\n        \"showTime\": true,\n        \"sortOrder\": \"Descending\",\n        \"wrapLogMessage\": true\n      },\n      \"targets\": [\n        {\n          \"expr\": \"{cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\", pod=~\\\"$pod\\\"} |~ \\\"(?i)error|warning|failed|exception\\\"\",\n          \"queryType\": \"range\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Warnings and Errors\",\n      \"type\": \"logs\"\n    },\n    {\n      \"datasource\": {\n        \"type\": \"loki\"\
+          ,\n        \"uid\": \"loki\"\n      },\n      \"gridPos\": {\n        \"h\": 12,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 18\n      },\n      \"id\": 3,\n      \"options\": {\n        \"dedupStrategy\": \"none\",\n        \"enableLogDetails\": true,\n        \"prettifyLogMessage\": false,\n        \"showCommonLabels\": false,\n        \"showLabels\": true,\n        \"showTime\": true,\n        \"sortOrder\": \"Descending\",\n        \"wrapLogMessage\": true\n      },\n      \"targets\": [\n        {\n          \"expr\": \"{cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\", pod=~\\\"$pod\\\", container=~\\\"$container\\\"}\",\n          \"queryType\": \"range\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Kubernetes Pod Logs\",\n      \"type\": \"logs\"\n    }\n  ],\n  \"refresh\": \"10s\",\n  \"schemaVersion\": 41,\n  \"tags\": [\n    \"kubernetes\",\n    \"loki\",\n    \"logs\",\n    \"gitops\"\n  ],\n  \"templating\": {\n    \"list\"\
+          : [\n      {\n        \"allValue\": \".*\",\n        \"current\": {\n          \"text\": \"All\",\n          \"value\": \"$__all\"\n        },\n        \"datasource\": {\n          \"type\": \"loki\",\n          \"uid\": \"loki\"\n        },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\"}, namespace)\",\n        \"includeAll\": true,\n        \"label\": \"Namespace\",\n        \"name\": \"namespace\",\n        \"query\": \"label_values({cluster=\\\"kind-lab\\\"}, namespace)\",\n        \"refresh\": 1,\n        \"type\": \"query\"\n      },\n      {\n        \"allValue\": \".*\",\n        \"current\": {\n          \"text\": \"All\",\n          \"value\": \"$__all\"\n        },\n        \"datasource\": {\n          \"type\": \"loki\",\n          \"uid\": \"loki\"\n        },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\"}, pod)\",\n        \"includeAll\": true,\n        \"label\": \"Pod\",\n        \"name\": \"\
+          pod\",\n        \"query\": \"label_values({cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\"}, pod)\",\n        \"refresh\": 1,\n        \"type\": \"query\"\n      },\n      {\n        \"allValue\": \".*\",\n        \"current\": {\n          \"text\": \"All\",\n          \"value\": \"$__all\"\n        },\n        \"datasource\": {\n          \"type\": \"loki\",\n          \"uid\": \"loki\"\n        },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\", pod=~\\\"$pod\\\"}, container)\",\n        \"includeAll\": true,\n        \"label\": \"Container\",\n        \"name\": \"container\",\n        \"query\": \"label_values({cluster=\\\"kind-lab\\\", namespace=~\\\"$namespace\\\", pod=~\\\"$pod\\\"}, container)\",\n        \"refresh\": 1,\n        \"type\": \"query\"\n      }\n    ]\n  },\n  \"time\": {\n    \"from\": \"now-1h\",\n    \"to\": \"now\"\n  },\n  \"timezone\": \"browser\",\n  \"title\": \"Kubernetes Logs\",\n  \"uid\":\
+          \ \"kubernetes-logs\",\n  \"version\": 1\n}\n"
+      argo-workflows-logs:
+        json: "{\n  \"annotations\": { \"list\": [] },\n  \"editable\": false,\n  \"templating\": {\n    \"list\": [\n      {\n        \"name\": \"template\",\n        \"label\": \"Workflow template\",\n        \"type\": \"query\",\n        \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow_template=~\\\".+\\\"}, workflow_template)\",\n        \"query\": { \"label\": \"workflow_template\", \"stream\": \"{cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow_template=~\\\".+\\\"}\", \"type\": 1 },\n        \"includeAll\": true,\n        \"allValue\": \".+\",\n        \"multi\": false,\n        \"refresh\": 2,\n        \"sort\": 1,\n        \"current\": { \"text\": \"All\", \"value\": \"$__all\" }\n      },\n      {\n        \"name\": \"workflow\",\n        \"label\": \"Workflow\",\n        \"type\": \"query\",\n        \"datasource\": { \"type\": \"loki\", \"\
+          uid\": \"loki\" },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=~\\\".+\\\", workflow_template=~\\\"$template\\\"}, workflow)\",\n        \"query\": { \"label\": \"workflow\", \"stream\": \"{cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=~\\\".+\\\", workflow_template=~\\\"$template\\\"}\", \"type\": 1 },\n        \"includeAll\": false,\n        \"multi\": false,\n        \"refresh\": 2,\n        \"sort\": 1\n      },\n      {\n        \"name\": \"step\",\n        \"label\": \"Step (pod)\",\n        \"type\": \"query\",\n        \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\n        \"definition\": \"label_values({cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=\\\"$workflow\\\"}, pod)\",\n        \"query\": { \"label\": \"pod\", \"stream\": \"{cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=\\\"$workflow\\\"}\", \"type\": 1 },\n        \"\
+          includeAll\": true,\n        \"allValue\": \".+\",\n        \"multi\": true,\n        \"refresh\": 2,\n        \"sort\": 1,\n        \"current\": { \"text\": \"All\", \"value\": \"$__all\" }\n      },\n      {\n        \"name\": \"search\",\n        \"label\": \"Filter text\",\n        \"type\": \"textbox\",\n        \"current\": { \"text\": \"\", \"value\": \"\" }\n      }\n    ]\n  },\n  \"panels\": [\n    {\n      \"type\": \"table\",\n      \"title\": \"Recent workflows in range (pick one above)\",\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\n      \"gridPos\": { \"h\": 7, \"w\": 24, \"x\": 0, \"y\": 0 },\n      \"options\": { \"showHeader\": true },\n      \"targets\": [\n        {\n          \"expr\": \"sum by (workflow, workflow_template) (count_over_time({cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=~\\\".+\\\", workflow_template=~\\\"$template\\\"}[$__range]))\",\n          \"instant\": true,\n          \"format\": \"table\"\
+          ,\n          \"refId\": \"A\"\n        }\n      ],\n      \"transformations\": [\n        { \"id\": \"organize\", \"options\": { \"renameByName\": { \"workflow\": \"Workflow\", \"workflow_template\": \"Template\", \"Value\": \"Log lines\" } } },\n        { \"id\": \"sortBy\", \"options\": { \"fields\": \"\", \"sort\": [ { \"field\": \"Log lines\", \"desc\": true } ] } }\n      ]\n    },\n    {\n      \"type\": \"timeseries\",\n      \"title\": \"$workflow - log volume by step\",\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\n      \"gridPos\": { \"h\": 7, \"w\": 24, \"x\": 0, \"y\": 7 },\n      \"options\": { \"legend\": { \"displayMode\": \"table\", \"placement\": \"right\", \"showLegend\": true } },\n      \"targets\": [\n        {\n          \"expr\": \"sum by (pod) (count_over_time({cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=\\\"$workflow\\\", container=\\\"main\\\", pod=~\\\"$step\\\"} |~ \\\"(?i)$search\\\" [$__auto]))\",\n  \
+          \        \"legendFormat\": \"{{pod}}\",\n          \"refId\": \"A\"\n        }\n      ]\n    },\n    {\n      \"type\": \"logs\",\n      \"title\": \"$workflow - step logs\",\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\n      \"gridPos\": { \"h\": 23, \"w\": 24, \"x\": 0, \"y\": 14 },\n      \"options\": {\n        \"showTime\": true,\n        \"showLabels\": true,\n        \"showCommonLabels\": false,\n        \"wrapLogMessage\": true,\n        \"prettifyLogMessage\": false,\n        \"enableLogDetails\": true,\n        \"dedupStrategy\": \"none\",\n        \"sortOrder\": \"Ascending\"\n      },\n      \"targets\": [\n        {\n          \"expr\": \"{cluster=\\\"kind-lab\\\", namespace=\\\"argo-workflows\\\", workflow=\\\"$workflow\\\", container=\\\"main\\\", pod=~\\\"$step\\\"} |~ \\\"(?i)$search\\\"\",\n          \"refId\": \"A\"\n        }\n      ]\n    }\n  ],\n  \"refresh\": \"30s\",\n  \"schemaVersion\": 41,\n  \"tags\": [\"argo\", \"workflows\",\
+          \ \"logs\", \"gitops\"],\n  \"time\": { \"from\": \"now-6h\", \"to\": \"now\" },\n  \"timezone\": \"browser\",\n  \"title\": \"Argo Workflows Logs\",\n  \"uid\": \"argo-workflows-logs\",\n  \"version\": 2\n}\n"
+  deploymentStrategy:
+    type: Recreate
+  initChownData:
+    enabled: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472

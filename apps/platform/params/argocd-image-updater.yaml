@@ -1,0 +1,22 @@
+name: argocd-image-updater
+namespace: argocd
+syncOptions: []
+type: helm
+repoURL: https://argoproj.github.io/argo-helm
+revision: 1.2.4
+chart: argocd-image-updater
+values:
+  config:
+    argocd:
+      grpcWeb: true
+      serverAddress: argocd-server.argocd.svc.cluster.local
+      insecure: true
+      plaintext: true
+    registries:
+    - name: k3d-registry
+      prefix: k3d-registry:5000
+      api_url: http://k3d-registry:5000
+      insecure: true
+      default: true
+    logLevel: info
+  replicaCount: 1

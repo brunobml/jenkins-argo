@@ -1,0 +1,8 @@
+name: products
+namespace: argocd
+syncOptions: []
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/products
+directoryInclude: applicationset*.yaml

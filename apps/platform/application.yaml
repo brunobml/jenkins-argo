@@ -1,0 +1,32 @@
+# TEMPORARY - migration bridge (roadmap A5).
+#
+# During the app-of-apps -> ApplicationSet cutover this child app is picked up by
+# the OLD root (bootstrap/root-application.yaml, which recurses apps/*/application.yaml)
+# and deploys the `platform` ApplicationSet. The ApplicationSet then ADOPTS the
+# existing per-app Applications (same names) and rewrites their tracking-id.
+#
+# Once every app is re-owned by the ApplicationSet, the root is repointed
+# straight at apps/platform and this file is deleted.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/brunobml/jenkins-argo.git
+    targetRevision: main
+    path: apps/platform
+    directory:
+      include: applicationset.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

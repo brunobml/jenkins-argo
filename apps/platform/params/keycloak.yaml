@@ -1,0 +1,8 @@
+name: keycloak
+namespace: keycloak
+syncOptions:
+- CreateNamespace=true
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/keycloak/manifests

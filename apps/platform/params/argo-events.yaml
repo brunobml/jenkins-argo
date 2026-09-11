@@ -1,0 +1,32 @@
+name: argo-events
+namespace: argo-events
+finalizer: true
+syncOptions:
+- CreateNamespace=true
+- ServerSideApply=true
+- SkipDryRunOnMissingResource=true
+type: helm
+repoURL: https://argoproj.github.io/argo-helm
+revision: 2.4.24
+chart: argo-events
+values:
+  controller:
+    replicas: 1
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: false
+  webhook:
+    enabled: true
+    replicas: 1
+  extraObjects:
+  - apiVersion: argoproj.io/v1alpha1
+    kind: EventBus
+    metadata:
+      name: default
+      namespace: argo-events
+      annotations:
+        argocd.argoproj.io/sync-wave: '1'
+    spec:
+      jetstream:
+        version: latest

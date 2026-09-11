@@ -1,0 +1,8 @@
+name: tenants
+namespace: argocd
+syncOptions: []
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/tenants
+directoryInclude: applicationset.yaml

@@ -1,0 +1,8 @@
+name: s3-moto
+namespace: s3-moto
+syncOptions:
+- CreateNamespace=true
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/s3-moto

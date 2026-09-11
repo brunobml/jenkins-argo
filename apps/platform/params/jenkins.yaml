@@ -1,0 +1,24 @@
+name: jenkins
+namespace: jenkins
+syncOptions:
+- CreateNamespace=true
+type: oci
+repoURL: oci://ghcr.io/jenkinsci/helm-charts/jenkins
+revision: 5.9.49
+values:
+  controller:
+    serviceType: ClusterIP
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hostName: jenkins.localhost
+    jenkinsUrl: http://jenkins.localhost
+    additionalPlugins:
+    - oic-auth
+    JCasC:
+      securityRealm: "oic:\n  clientId: \"jenkins\"\n  clientSecret: \"jenkins-oidc-secret\"\n  serverConfiguration:\n    wellKnown:\n      wellKnownOpenIDConfigurationUrl: \"http://keycloak.localhost/realms/platform/.well-known/openid-configuration\"\n      scopesOverride: \"openid email profile\"\n  userNameField: \"preferred_username\"\n  fullNameFieldName: \"name\"\n  emailFieldName: \"email\"\n  groupsFieldName: \"groups\"\n  disableSslVerification: true\n  logoutFromOpenidProvider: true"
+      authorizationStrategy: "loggedInUsersCanDoAnything:\n  allowAnonymousRead: false"
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 8Gi

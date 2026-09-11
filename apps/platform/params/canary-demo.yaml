@@ -1,0 +1,8 @@
+name: canary-demo
+namespace: canary-demo
+syncOptions:
+- CreateNamespace=true
+type: dir
+repoURL: https://github.com/brunobml/jenkins-argo.git
+revision: main
+path: apps/canary-demo/manifests

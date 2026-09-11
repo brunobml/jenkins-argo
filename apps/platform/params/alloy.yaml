@@ -1,0 +1,32 @@
+name: alloy
+namespace: alloy
+syncOptions:
+- CreateNamespace=true
+type: helm
+repoURL: https://grafana.github.io/helm-charts
+revision: 1.11.0
+chart: alloy
+values:
+  controller:
+    type: daemonset
+  alloy:
+    mounts:
+      varlog: true
+    extraEnv:
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    configMap:
+      create: true
+      content: "discovery.kubernetes \"pods\" {\n  role = \"pod\"\n\n  selectors {\n    role  = \"pod\"\n    field = \"spec.nodeName=\" + coalesce(sys.env(\"NODE_NAME\"), constants.hostname)\n  }\n}\n\ndiscovery.relabel \"pod_logs\" {\n  targets = discovery.kubernetes.pods.targets\n\n  rule {\n    source_labels = [\"__meta_kubernetes_namespace\"]\n    target_label  = \"namespace\"\n  }\n\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_name\"]\n    target_label  = \"pod\"\n  }\n\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_container_name\"]\n    target_label  = \"container\"\n  }\n\n  rule {\n    source_labels = [\n      \"__meta_kubernetes_namespace\",\n      \"__meta_kubernetes_pod_container_name\",\n    ]\n    separator    = \"/\"\n    target_label = \"job\"\n  }\n\n  // Argo Workflows: keep the workflow / template as Loki labels so\n  // a dashboard can show one workflow's logs at a time.\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_label_workflows_argoproj_io_workflow\"\
+        ]\n    target_label  = \"workflow\"\n  }\n\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_label_workflows_argoproj_io_workflow_template\"]\n    target_label  = \"workflow_template\"\n  }\n\n  // /var/log/pods/<ns>_<pod>_<uid>/<container>/*.log\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_uid\", \"__meta_kubernetes_pod_container_name\"]\n    separator     = \"/\"\n    action        = \"replace\"\n    replacement   = \"/var/log/pods/*$1/*.log\"\n    target_label  = \"__path__\"\n  }\n}\n\nlocal.file_match \"pod_logs\" {\n  path_targets = discovery.relabel.pod_logs.output\n}\n\nloki.source.file \"pod_logs\" {\n  targets       = local.file_match.pod_logs.targets\n  forward_to    = [loki.process.pod_logs.receiver]\n  tail_from_end = false\n}\n\nloki.process \"pod_logs\" {\n  // kubelet writes CRI-format lines: \"<ts> stdout F <message>\"\n  stage.cri {}\n\n  stage.static_labels {\n    values = {\n      cluster = \"kind-lab\",\n    }\n  }\n\n  forward_to = [loki.write.default.receiver]\n\
+        }\n\nloki.write \"default\" {\n  endpoint {\n    url = \"http://loki-gateway.loki.svc.cluster.local/loki/api/v1/push\"\n  }\n}"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  serviceMonitor:
+    enabled: false
