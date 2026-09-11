@@ -9,10 +9,9 @@ spec:
   source:
     repoURL: https://github.com/brunobml/jenkins-argo.git
     targetRevision: main
-    path: apps
+    path: apps/platform
     directory:
-      recurse: true
-      include: '*/application.yaml'
+      include: applicationset.yaml'
 
   destination:
     server: https://kubernetes.default.svc
