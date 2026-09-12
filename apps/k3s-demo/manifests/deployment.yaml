@@ -18,12 +18,6 @@ spec:
         - name: app
           image: k3d-registry:5000/k3s-demo:latest
           imagePullPolicy: Always
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              while true; do
-                printf 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<h1>Hello from k3s-demo!</h1><p>Built by Bitbucket Pipelines & deployed by ArgoCD on local k3s.</p>\n' | nc -l -p 8080
-              done
           ports:
             - containerPort: 8080
               name: http
