@@ -41,23 +41,27 @@ sequenceDiagram
 
 ## Detailed Component Breakdown
 
-### 1. Build & Push (Bitbucket Pipelines)
+### 1. Build & Push (Bitbucket Pipelines with Google Kaniko)
 
 - **Repository**: `git@bitbucket.org:bbezerra/k3s.git`
 - **Configuration**: `bitbucket-pipelines.yml` (`branches: main:`)
-- **Execution**: Runs on the in-cluster runner (`runs-on: [self.hosted, linux, k3s]`) in namespace `bitbucket-runners`.
-- **Image Metadata**: The pipeline injects pipeline metadata into the Docker build:
+- **Execution**: Runs on the in-cluster runner (`runs-on: [self.hosted, linux, k3s]`) using **Google Kaniko** (`k3d-registry:5000/kaniko-ci:latest`).
+- **Daemonless Build**: Runs unprivileged inside the step container without needing Docker-in-Docker or `services: [docker]`.
+- **Image Metadata**: The pipeline injects pipeline metadata into the Kaniko build:
 
   ```bash
-  docker build \
+  executor \
+    --context "dir://${BITBUCKET_CLONE_DIR}" \
+    --dockerfile "${BITBUCKET_CLONE_DIR}/Dockerfile" \
+    --destination "k3d-registry:5000/k3s-demo:${SHORT_HASH}" \
+    --destination "k3d-registry:5000/k3s-demo:latest" \
+    --insecure \
     --build-arg COMMIT_HASH="${SHORT_HASH}" \
     --build-arg BUILD_NUMBER="${BITBUCKET_BUILD_NUMBER}" \
-    --build-arg BUILD_TIME="${BUILD_TIME}" \
-    -t "k3d-registry:5000/k3s-demo:${SHORT_HASH}" \
-    -t "k3d-registry:5000/k3s-demo:latest" .
+    --build-arg BUILD_TIME="${BUILD_TIME}"
   ```
 
-- **Registry Destination**: Pushed to the local k3d registry (`k3d-registry:5000`).
+- **Registry Destination**: Pushed directly to the local k3d registry (`k3d-registry:5000`).
 
 ### 2. Registry Polling (Argo CD Image Updater)
 
